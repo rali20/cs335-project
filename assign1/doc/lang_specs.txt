@@ -1,3 +1,14 @@
 Source Language : Go
 Implementation Language : Python3
 Target Language : x86
+
+Some features different from C are
+1. Polymorphism - Function Overloading, Operator Overloading
+2. Run-time linking or Dynamic Linking
+3. Variable Declaration, Complex types, Unicode strings
+4. Method Declaration, Type Declaration, Packages
+5. Struct types, Map types
+
+References
+1. The Go Programming Language Specification
+    https://golang.org/ref/spec
