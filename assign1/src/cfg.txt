@@ -77,3 +77,7 @@ FLOAT,red
 IMAG,red
 STRING,yellow
 RUNE,yellow
+NEWLINE,black
+SPACE,black
+TAB,black
+COMMENT,gray
