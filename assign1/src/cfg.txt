@@ -11,6 +11,7 @@ FOR,blue
 FUNC,blue
 GO,blue
 GOTO,blue
+IF,blue
 IMPORT,blue
 INTERFACE,blue
 MAP,blue
