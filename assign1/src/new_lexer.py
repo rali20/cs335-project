@@ -78,20 +78,23 @@ types = {
   'FLOAT',  # 123.45
   'IMAG',   # 123.45i
   'STRING', # "abc",'abc'
-  'RUNE',  # unicode_chars
-  'NEWLINE',
-  'SPACE',
-  'TAB',
-  'COMMENT'
+  'RUNE',  	# unicode_chars
+  'NEWLINE',#\n
+  'SPACE',	#
+  'TAB',	#\t
+  'COMMENT'	#//
 }
 
 tokens = list(operators) + list(types) + list(reserved.values())
 
 # token definitions
+with open("cfg2.txt", "w") as c:
+	for i in tokens:
+		c.write(i+',\n')
 
 
 
-t_COMMENT = r'(/\*([^*]|\n|(\*+([^*/]|\n])))*\*+/)|(//.*)'
+# t_COMMENT = r'(/\*([^*]|\n|(\*+([^*/]|\n])))*\*+/)|(//.*)'
 # t_ignore = ' \t'
 t_ADD = r'\+'
 t_SUB = r'-'
@@ -151,31 +154,42 @@ float_re = "[0-9]*\.[0-9]+([eE][-+]?[0-9]+)?"
 
 imag_re = "(" + int_re + "|" + float_re + ")i"
 
-string_re = r'(\"[^(\")]*\")|(\'[^(\')]*\')'
+string_re = r'(\"[^\"]*\")|(\'[^\']*\')'
 rune_re = r'(\'(.|(\\[abfnrtv]))\')|(\"(.|(\\[abfnrtv]))\")'
 ident_re = "[_a-zA-Z]+[a-zA-Z0-9_]*"
+comment_re = r'(/\*([^*]|\n|(\*+([^*/]|\n])))*\*+/)|(//.*)'
 
+@lex.TOKEN(string_re)
+def t_STRING(t):
+  t.value = t.value[0:]
+  return t
+
+
+
+@lex.TOKEN(comment_re)
+def t_COMMENT(t):
+	t.value = t.value.replace("\n", "<br>")
+	t.value = t.value.replace(" ", "&nbsp;")
+	t.value = t.value.replace("\t", "&emsp;&emsp;")
+	return t
 
 @lex.TOKEN("[\\n]+")
 def t_NEWLINE(t):
   r'\n+'
   t.lexer.lineno += len(t.value)
   t.value = t.value.replace('\n', '<br>')
-  # print(" .......newline aaya ")
   return t
 
 @lex.TOKEN("[ ]+")
 def t_SPACE(t):
 	r'[ ]+'
 	t.value = t.value.replace(' ', '&nbsp;')
-	# print(" .......space aaya ")
 	return t;
 
 @lex.TOKEN("[\\t]+")
 def t_TAB(t):
 	r'\t+'
 	t.value = t.value.replace('\t', '&emsp;&emsp;')
-	# print(" .......tab aaya ")
 	return t;
 
 
@@ -189,10 +203,7 @@ def t_RUNE(t):
   t.value = ord(t.value[1:-1])
   return t
 
-@lex.TOKEN(string_re)
-def t_STRING(t):
-  t.value = t.value[1:-1]
-  return t
+
 
 @lex.TOKEN(imag_re)
 def t_IMAG(t):
@@ -206,7 +217,7 @@ def t_FLOAT(t):
 
 @lex.TOKEN(hex_re)
 def t_HEX(t):
-  t.value = int(t.value)
+  # t.value = int(t.value)
   return t
 
 @lex.TOKEN(int_re)
@@ -252,7 +263,7 @@ try :
 
   html_str = '''<!DOCTYPE html>\n<html>\n<head>\n<title>Token Highlighting</title>\n</head>\n<body>\n'''
   for token in lexer:
-      # print(token)
+      print(token)
       html_str += '<span style="color:{};">{}</span>'.format(token_colors[token.type], token.value)
   html_str += '''\n</body>\n</html>\n'''
 
