@@ -1,0 +1,193 @@
+Syntax of Go Programing Language (that we plan to implement)
+
+# Reference :
+  1. The Go Programming Language Specification
+          https://golang.org/ref/spec
+
+# Notation 
+Production  = production_name "=" [ Expression ] "." .
+Expression  = Alternative { "|" Alternative } .
+Alternative = Term { Term } .
+Term        = production_name | token [ "…" token ] | Group | Option | Repetition .
+Group       = "(" Expression ")" .
+Option      = "[" Expression "]" .
+Repetition  = "{" Expression "}" .
+
+|   alternation
+()  grouping
+[]  option (0 or 1 times)
+{}  repetition (0 to n times)
+
+# Grammar Specification
+
+## Types
+Type = TypeName | TypeLit | "(" Type ")" .
+TypeName = identifier | QualifiedIdent .
+TypeLit = ArrayType | StructType | PointerType .
+
+## Array Types
+ArrayType = "[" ArrayLength "]" ElementType .
+ArrayLength = Expression .
+ElementType = Type .
+
+## Struct Types
+StructType = "struct" "{" { FieldDecl ";" } "}" .
+FieldDecl = (IdentifierList Type) [ Tag ] .
+Tag = string_lit .
+
+## Pointer Types
+PointerType = "*" BaseType .
+BaseType = Type .
+
+## Function Types
+Signature = Parameters [ Result ] .
+Result = Parameters | Type .
+Parameters = "(" [ ParameterList [ "," ] ] ")" .
+ParameterList = ParameterDecl { "," ParameterDecl } .
+ParameterDecl = [ IdentifierList ] Type .
+MethodName = identifier .
+
+## Blocks
+Block = "{" StatementList "}" .
+StatementList = { Statement ";" } .
+
+## Declarations and Scope
+TopLevelDecl = Declaration | FunctionDecl .
+Declaration = ConstDecl | TypeDecl | VarDecl .
+
+## Constant Declrations
+ConstDecl = "const" ( ConstSpec | "(" { ConstSpec ";" } ")" ) .
+ConstSpec = IdentifierList [ [ Type ] "=" ExpressionList ] .
+IdentifierList = identifier { "," identifier } .
+ExpressionList = Expression { "," Expression } .
+
+## Type Declarations
+TypeDecl = "type" ( TypeSpec | "(" { TypeSpec ";" } ")" ) .
+TypeSpec = AliasDecl | TypeDef .
+AliasDecl = identifier "=" Type .
+
+## Type Definitions
+TypeDef = identifier Type .
+
+## Variable declaration
+VarDecl = "var" ( VarSpec | "(" { VarSpec ";" } ")" ) .
+VarSpec = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
+
+## Short Variable Declarations
+ShortVarDecl = IdentifierList ":=" ExpressionList .
+
+## Function Declaration
+FunctionDecl = "func" FunctionName ( Function | Signature ) .
+FunctionName = identifier .
+Function = Signature FunctionBody .
+FunctionBody = Block .
+
+## Operands
+Operand = Literal | OperandName | "(" Expression ")" .
+Literal = BasicLit | CompositeLit.
+BasicLit = int_lit | float_lit | imaginary_lit | rune_lit | string_lit .
+OperandName = identifier | QualifiedIdent.
+
+
+## Qualified Identifier
+QualifiedIdent = PackageName "." identifier .
+
+## Composite literals
+CompositeLit = LiteralType LiteralValue .
+LiteralType = StructType | ArrayType | "[" "..." "]" ElementType | TypeName .
+LiteralValue = "{" [ ElementList [ "," ] ] "}" .
+ElementList = KeyedElement { "," KeyedElement } .
+KeyedElement = [ Key ":" ] Element .
+Key = FieldName | Expression | LiteralValue .
+FieldName = identifier .
+Element = Expression | LiteralValue .
+
+## Primary Expressions
+PrimaryExpr = Operand | Conversion | PrimaryExpr Selector | PrimaryExpr Index 
+              | PrimaryExpr Slice | PrimaryExpr TypeAssertion | PrimaryExpr Arguments .
+Selector = "." identifier .
+Index = "[" Expression "]" .
+Slice = "[" [ Expression ] ":" [ Expression ] "]" |
+"[" [ Expression ] ":" Expression ":" Expression "]" .
+TypeAssertion = "." "(" Type ")" .
+Arguments = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "," ] ] ")" .
+
+## Operators
+Expression = UnaryExpr | Expression binary_op Expression .
+UnaryExpr = PrimaryExpr | unary_op UnaryExpr .
+binary_op = "||" | "&&" | rel_op | add_op | mul_op .
+rel_op = "==" | "!=" | "<" | "<=" | ">" | ">=" .
+add_op = "+" | "-" | "|" | "^" .
+mul_op = "*" | "/" | "%" | "<<" | ">>" | "&" | "&^" .
+unary_op = "+" | "-" | "!" | "^" | "*" | "&" | "<-" .
+
+## Conversions
+Conversion = Type "(" Expression [ "," ] ")" .
+
+## Statements
+Statement = Declaration | LabeledStmt | SimpleStmt | ReturnStmt | BreakStmt 
+            | ContinueStmt | GotoStmt | Block | IfStmt | SwitchStmt | ForStmt .
+SimpleStmt = EmptyStmt | ExpressionStmt | IncDecStmt | Assignment | ShortVarDecl .
+
+## Empty Statement
+EmptyStmt = .
+
+## Labeled Statements
+LabeledStmt = Label ":" Statement .
+Label = identifier .
+
+## Expression statements
+ExpressionStmt = Expression .
+
+## IncDec Statements
+IncDecStmt = Expression ( "++" | "--" ) .
+
+## Assignments
+Assignment = ExpressionList assign_op ExpressionList .
+assign_op = [ add_op | mul_op ] "=" .
+
+## If Statements
+IfStmt = "if" [ SimpleStmt ";" ] Expression Block [ "else" ( IfStmt | Block ) ] .
+
+## Switch Statements
+SwitchStmt = ExprSwitchStmt | TypeSwitchStmt .
+ExprSwitchStmt = "switch" [ SimpleStmt ";" ] [ Expression ] "{" { ExprCaseClause } "}" .
+ExprCaseClause = ExprSwitchCase ":" StatementList .
+ExprSwitchCase = "case" ExpressionList | "default" .
+TypeSwitchStmt = "switch" [ SimpleStmt ";" ] TypeSwitchGuard "{" { TypeCas
+TypeSwitchGuard = [ identifier ":=" ] PrimaryExpr "." "(" "type" ")" .
+TypeCaseClause = TypeSwitchCase ":" StatementList .
+TypeSwitchCase = "case" TypeList | "default" .
+TypeList = Type { "," Type } .
+
+## For Statement
+ForStmt = "for" [ Condition | ForClause | RangeClause ] Block .
+Condition = Expression .
+ForClause = [ InitStmt ] ";" [ Condition ] ";" [ PostStmt ] .
+InitStmt = SimpleStmt .
+PostStmt = SimpleStmt .
+RangeClause = [ ExpressionList "=" | IdentifierList ":=" ] "range" Expression .
+
+## Return Statements
+ReturnStmt = "return" [ ExpressionList ] .
+
+## Break Statements
+BreakStmt = "break" [ Label ] .
+
+## Continue Statements
+ContinueStmt = "continue" [ Label ] .
+
+## Goto statements
+GotoStmt = "goto" Label .
+
+## Source File Organization
+SourceFile = PackageClause ";" { ImportDecl ";" } { TopLevelDecl ";" } .
+
+## Package Clause
+PackageClause = "package" PackageName .
+PackageName = identifier .
+
+## Import Declarations
+ImportDecl = "import" ( ImportSpec | "(" { ImportSpec ";" } ")" ) .
+ImportSpec = [ "." | PackageName ] ImportPath .
+ImportPath = string_lit .
