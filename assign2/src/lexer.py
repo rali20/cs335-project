@@ -29,8 +29,8 @@ operators = {
 	'AND_ASSIGN',     # &=
 	'OR_ASSIGN',      # |=
 	'XOR_ASSIGN',     # ^=
-	'SHL_ASSIGN',     # <<=
-	'SHR_ASSIGN',     # >>=
+	'LSHIFT_ASSIGN',     # <<=
+	'RSHIFT_ASSIGN',     # >>=
 	'AND_NOT_ASSIGN', # &^=
 
 	'LAND',  # &&
@@ -70,7 +70,7 @@ for r in keywords :
   reserved[r.lower()] = r
 
 types = {
-  'IDENT',  # main
+  'IDENTIFIER',  # main
   'INT',    # 12345
   'OCTAL',  # 017
   'HEX',    # 0x12abcd
@@ -86,10 +86,6 @@ types = {
 
 tokens = list(operators) + list(types) + list(reserved.values())
 
-# token definitions
-with open("cfg2.txt", "w") as c:
-	for i in tokens:
-		c.write(i+',\n')
 
 
 
@@ -103,8 +99,8 @@ t_REM = r'%'
 t_AND = r'&'
 t_OR = r'\|'
 t_XOR = r'\^'
-t_SHL = r'<<'
-t_SHR = r'>>'
+t_LSHIFT = r'<<'
+t_RSHIFT = r'>>'
 t_AND_NOT = r'&\^'
 t_ADD_ASSIGN = r'\+='
 t_SUB_ASSIGN = r'-='
@@ -194,7 +190,7 @@ def t_NEWLINE(t):
 
 @lex.TOKEN(ident_re)
 def t_IDENT(t):
-  t.type = reserved.get(t.value, 'IDENT')
+  t.type = reserved.get(t.value, 'IDENTIFIER')
   return t
 
 @lex.TOKEN(rune_re)
@@ -216,6 +212,11 @@ def t_FLOAT(t):
 
 @lex.TOKEN(hex_re)
 def t_HEX(t):
+  # t.value = int(t.value)
+  return t
+
+@lex.TOKEN(octal_re)
+def t_OCTAL(t):
   # t.value = int(t.value)
   return t
 

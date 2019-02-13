@@ -2,7 +2,7 @@
 
 import sys
 import ply.yacc as yacc
-import lexer
+from lexer import *
 
 # Source
 def p_start(p):
@@ -11,14 +11,15 @@ def p_start(p):
 # Types
 def p_type(p):
     '''Type : TypeName
-            | TypeList
+            | TypeLit
             | LPAREN Type RPAREN'''
 
 def p_type_name(p):
-    '''TypeName : identifier | QualifiedIdent'''
+    '''TypeName : IDENTIFIER
+                | QualifiedIdent'''
 
 def p_type_lit(p):
-    '''TypeLit = ArrayType
+    '''TypeLit : ArrayType
                | StructType
                | PointerType
                | FunctionType'''
@@ -125,10 +126,10 @@ def p_taexp_list_opt(p):
                     | empty'''
 
 def p_ident_list(p):
-    '''IdentifierList : identifier IdentComRep'''
+    '''IdentifierList : IDENTIFIER IdentComRep'''
 
 def p_ident_com_rep(p):
-    '''IdentComRep : IdentComRep COMMA identifier
+    '''IdentComRep : IdentComRep COMMA IDENTIFIER
                    | empty'''
 
 def p_expr_list(p):
@@ -153,11 +154,11 @@ def p_type_spec(p):
 
 # Alias Declarations
 def p_alias_decl(p):
-    '''AliasDecl : identifier ASSIGN Type'''
+    '''AliasDecl : IDENTIFIER ASSIGN Type'''
 
 # Type Definitions
 def p_type_def(p):
-    '''TypeDef : identifier Type'''
+    '''TypeDef : IDENTIFIER Type'''
 
 # Variable Declarations
 def p_var_decl(p):
@@ -186,7 +187,7 @@ def p_func_decl(p):
                     | FUNC FunctionName Signature'''
 
 def p_func_name(p):
-    '''FunctionName : identifier'''
+    '''FunctionName : IDENTIFIER'''
 
 def p_func_body(p):
     '''FunctionBody : Block'''
@@ -198,29 +199,29 @@ def p_operand(p) :
                | LPAREN Expression RPAREN'''
 
 def p_literal(p):
-    '''Literal : BasicLit
-              | CompositeLit
-              | FunctionLit'''
+    '''Literal : BasicLit'''
+              # | CompositeLit
+              # | FunctionLit'''
 
 def p_basic_lit(p):
-    '''BasicLit : int_re
-                | float_re
-                | imag_re
-                | rune_re
-                | octal_re
-                | hex_re
-                | string_re'''
+    '''BasicLit : INT
+                | FLOAT
+                | IMAG
+                | RUNE
+                | OCTAL
+                | HEX
+                | STRING'''
 
 def p_operand_name(p):
-    '''OperandName : identifier
+    '''OperandName : IDENTIFIER
                    | QualifiedIdent'''
 
 # Qualified identifiers
 def p_quali_ident(p):
-    '''QualifiedIdent : PackageName PERIOD identifier'''
+    '''QualifiedIdent : PackageName PERIOD IDENTIFIER'''
 
 #Composite literals
-def p_composit
+# def p_composit
 
 # Function literals
 
@@ -231,12 +232,12 @@ def p_prim_expr(p):
                    | Conversion
                    | PrimaryExpr Selector
                    | PrimaryExpr Index
-                   | Primary Slice
-                   | Primary TypeAssertion
+                   | PrimaryExpr Slice
+                   | PrimaryExpr TypeAssertion
                    | PrimaryExpr Arguments'''
 
 def p_selector(p):
-    '''Selector : PERIOD identifier'''
+    '''Selector : PERIOD IDENTIFIER'''
 
 def p_index(p):
     '''Index : LBRACK Expression RBRACK'''
@@ -248,13 +249,23 @@ def p_slice(p):
 def p_type_assertion(p):
     '''TypeAssertion : PERIOD LPAREN Type RPAREN'''
 
+def p_expr_list_type_opt(p):
+    '''ExpressionListTypeOpt : ExpressionList
+                             | empty'''
+    p[0] = p[1]
+
 def p_arg(p):
     '''Arguments : LPAREN ExpressionListTypeOpt RPAREN'''
 
 # Operators
 def p_expr(p):
     '''Expression : UnaryExpr
-                  | Expression binary_op Expresion'''
+                  | Expression binary_op Expression'''
+
+def p_expr_opt(p):
+    '''ExpressionOpt : Expression
+                     | empty'''
+    p[0] = p[1]
 
 def p_unary_expr(p):
     '''UnaryExpr : PrimaryExpr
@@ -336,23 +347,40 @@ def p_labeled_statements(p):
     '''LabeledStmt : Label COLON Statement'''
 
 def p_label(p):
-    '''Label : identifier'''
+    '''Label : IDENTIFIER'''
 
 #Expression Statement
 def p_expression_stmt(p):
-    '''ExpressionStmt : Expresion'''
+    '''ExpressionStmt : Expression'''
 
 #Send Statement NOt written because of Channel
 
 #IncDec Statement
 def p_inc_dec(p):
-    '''IncDecStmt : Expresion INC
-                  | Expresion DEC'''
+    '''IncDecStmt : Expression INC
+                  | Expression DEC'''
 
 #Assignments
 def p_assignmnt(p):
     '''Assignment : ExpressionList assign_op ExpressionList'''
 
+def p_assign_op(p):
+  ''' assign_op : AssignOp'''
+  p[0] = ["assign_op", p[1]]
+
+def p_AssignOp(p):
+  ''' AssignOp : ADD_ASSIGN
+               | SUB_ASSIGN
+               | MUL_ASSIGN
+               | QUO_ASSIGN
+               | REM_ASSIGN
+               | AND_ASSIGN
+               | OR_ASSIGN
+               | XOR_ASSIGN
+               | LSHIFT_ASSIGN
+               | RSHIFT_ASSIGN
+               | ASSIGN'''
+  p[0] = ["AssignOp", p[1]]
 
 
 
@@ -363,7 +391,7 @@ def p_for_stmt(p):
     '''ForStmt : FOR ''' #####Not Completed
 
 def p_condition(p):
-    '''Condition : Expresion '''
+    '''Condition : Expression '''
 
 def p_forclause(p):
     '''ForClause : InitStmt SEMICOLON ConditionOpt SEMICOLON PostStmt'''
@@ -392,8 +420,11 @@ def p_goto(p):
     '''GotoStmt : GOTO Label'''
 
 #Fallthrough Statement
+def p_fallthrough_stmt(p):
+    '''FallthroughStmt : FALLTHROUGH'''
+
 def p_defer_stmt(p):
-    '''DeferStmt : defer Expresion'''
+    '''DeferStmt : defer Expression'''
 
 #SourceFile organization
 def p_source_file(p):
@@ -403,7 +434,7 @@ def p_package_clause(p):
     '''PackageClause : PACKAGE PackageName'''
 
 def p_package_name(p):
-    '''PackageName : identifier'''
+    '''PackageName : IDENTIFIER'''
 
 def p_imp_decl(p):
     '''ImportDecl : IMPORT ImportSpec
@@ -413,4 +444,23 @@ def p_imp_spec(p):
     '''ImportSpec : PackageNamePERIODOpt ImportPath'''
 
 def p_imp_path(p):
-    '''ImportPath : string_re'''
+    '''ImportPath : STRING'''
+
+def p_empty(p):
+    'empty :'
+    pass
+
+def p_error(p):
+    print("Syntax error in input!")
+
+
+
+parser = yacc.yacc()
+while True:
+    try:
+        s = raw_input('calc > ')
+    except EOFError:
+        break
+    if not s: continue
+    result = parser.parse(s)
+    print(result)
