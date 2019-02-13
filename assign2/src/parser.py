@@ -1,16 +1,8 @@
-# Hi, this is Rahul
-
-# Write AST for the given grammar
-
+# TODO : Write AST for the given grammar
 
 import sys
 import ply.yacc as yacc
 import lexer
-
-
-#
-
-
 
 # Source
 def p_start(p):
@@ -169,25 +161,44 @@ def p_type_def(p):
 
 # Variable Declarations
 def p_var_decl(p):
-    '''VarDecl : VAR VarsSpec
-               | VAR LPAREN VarSpec RPAREN'''
+    '''VarDecl : VAR VarSpec
+               | VAR LPAREN VarSpecRep RPAREN'''
 
 def p_var_spec_rep(p):
-    '''VarSpec : VarSpec SEMICOLON VarSpecRep
-               | empty'''
+    '''VarSpecRep : VarSpec SEMICOLON VarSpecRep
+                  | empty'''
 
 def p_var_spec(p):
     '''VarSpec : IdentifierList Type ExpressionListOpt
                | IdentifierList ASSIGN ExpressionList'''
 
-# Operand DECLARATIONS
+def p_expr_list_opt(p):
+    '''ExpressionListOpt : ASSIGN ExpressionList
+                         | empty'''
+
+# Short Variable Declaration
+def p_short_var_decl(p):
+    '''ShortVarDecl : IdentifierList DEFINE ExpressionList'''
+
+# Function Declaration
+def p_func_decl(p):
+    '''FunctionDecl : FUNC FunctionName Signature FunctionBody
+                    | FUNC FunctionName Signature'''
+
+def p_func_name(p):
+    '''FunctionName : identifier'''
+
+def p_func_body(p):
+    '''FunctionBody : Block'''
+
+# Operands
 def p_operand(p) :
     '''Operand : Literal
                | OperandName
                | LPAREN Expression RPAREN'''
 
 def p_literal(p):
-    '''Litrel : BasicLit
+    '''Literal : BasicLit
               | CompositeLit
               | FunctionLit'''
 
@@ -198,7 +209,6 @@ def p_basic_lit(p):
                 | rune_re
                 | octal_re
                 | hex_re
-                | ident_re
                 | string_re'''
 
 def p_operand_name(p):
@@ -207,7 +217,7 @@ def p_operand_name(p):
 
 # Qualified identifiers
 def p_quali_ident(p):
-    '''QualifiedIdent : PackageName DOT identifier'''
+    '''QualifiedIdent : PackageName PERIOD identifier'''
 
 #Composite literals
 def p_composit
@@ -226,7 +236,7 @@ def p_prim_expr(p):
                    | PrimaryExpr Arguments'''
 
 def p_selector(p):
-    '''Selector : DOT identifier'''
+    '''Selector : PERIOD identifier'''
 
 def p_index(p):
     '''Index : LBRACK Expression RBRACK'''
@@ -236,12 +246,12 @@ def p_slice(p):
              | LBRACK ExpressionOpt COLON Expression COLON Expression RBRACK'''
 
 def p_type_assertion(p):
-    '''TypeAssertion : DOT LPAREN Type RPAREN'''
+    '''TypeAssertion : PERIOD LPAREN Type RPAREN'''
 
 def p_arg(p):
     '''Arguments : LPAREN ExpressionListTypeOpt RPAREN'''
 
-#Operators
+# Operators
 def p_expr(p):
     '''Expression : UnaryExpr
                   | Expression binary_op Expresion'''
@@ -343,13 +353,6 @@ def p_inc_dec(p):
 def p_assignmnt(p):
     '''Assignment : ExpressionList assign_op ExpressionList'''
 
-def p_assign_op(p):
-    '''
-#############################################################
-
-#If statements
-def p_if_statement(p):
-    '''IfStmt =
 
 
 
@@ -407,7 +410,7 @@ def p_imp_decl(p):
                   | IMPORT LPAREN ImportSpecRep RPAREN'''
 
 def p_imp_spec(p):
-    '''ImportSpec : PackageNameDotOpt ImportPath'''
+    '''ImportSpec : PackageNamePERIODOpt ImportPath'''
 
 def p_imp_path(p):
     '''ImportPath : string_re'''
