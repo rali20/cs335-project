@@ -247,4 +247,167 @@ def p_expr(p):
                   | Expression binary_op Expresion'''
 
 def p_unary_expr(p):
-    '''UnaryExpr
+    '''UnaryExpr : PrimaryExpr
+                 | UnaryOp UnaryExpr'''
+
+def p_binary_op(p):
+    '''binary_op : LOR
+                 | LAND
+                 | rel_op
+                 | add_op
+                 | mul_op'''
+
+def p_rel_op(p):
+    '''rel_op : EQL
+              | NEQ
+              | LSS
+              | GTR
+              | LEQ
+              | GEQ'''
+
+def p_add_op(p):
+    '''add_op : ADD
+              | SUB
+              | OR
+              | XOR'''
+
+def p_mul_op(p):
+    '''mul_op : MUL
+              | QUO
+              | REM
+              | SHL
+              | SHR
+              | AND
+              | AND_NOT'''
+
+def p_unary_op(p):
+    '''UnaryOp : ADD
+               | SUB
+               | NOT
+               | XOR
+               | MUL
+               | AND
+               | ARROW'''
+
+#Conversion
+def p_conversion(p):
+    '''Conversion : Type LPAREN Expression RPAREN'''
+
+#Statements
+def p_statement(p):
+    '''Statement : Declaration
+                 | LabeledStmt
+                 | SimpleStmt
+                 | ReturnStmt
+                 | BreakStmt
+                 | ContinueStmt
+                 | GotoStmt
+                 | FallthroughStmt
+                 | Block
+                 | IfStmt
+                 | SwitchStmt
+                 | SelectStmt
+                 | ForStmt
+                 | DeferStmt'''
+
+def p_simple_stmt(p):
+    '''SimpleStmt : EmptyStmt
+                  | ExpressionStmt
+                  | IncDecStmt
+                  | Assignment
+                  | ShortVarDecl'''
+
+#Empty Statements
+def p_empty_stmt(p):
+    '''EmptyStmt : empty'''
+
+#labeled statements
+def p_labeled_statements(p):
+    '''LabeledStmt : Label COLON Statement'''
+
+def p_label(p):
+    '''Label : identifier'''
+
+#Expression Statement
+def p_expression_stmt(p):
+    '''ExpressionStmt : Expresion'''
+
+#Send Statement NOt written because of Channel
+
+#IncDec Statement
+def p_inc_dec(p):
+    '''IncDecStmt : Expresion INC
+                  | Expresion DEC'''
+
+#Assignments
+def p_assignmnt(p):
+    '''Assignment : ExpressionList assign_op ExpressionList'''
+
+def p_assign_op(p):
+    '''
+#############################################################
+
+#If statements
+def p_if_statement(p):
+    '''IfStmt =
+
+
+
+###################################################
+
+#For Statement
+def p_for_stmt(p):
+    '''ForStmt : FOR ''' #####Not Completed
+
+def p_condition(p):
+    '''Condition : Expresion '''
+
+def p_forclause(p):
+    '''ForClause : InitStmt SEMICOLON ConditionOpt SEMICOLON PostStmt'''
+
+def p_init_stmt(p):
+    '''InitStmt : SimpleStmt'''
+
+def p_post_stmt(p):
+    '''PostStmt : SimpleStmt'''
+
+
+#Return Statement
+def p_return_stmt(p):
+    '''ReturnStmt : RETURN ExpressionListOpt'''
+
+#Break Statement
+def p_break_stmt(p):
+    '''BreakStmt : BREAK LabelOpt'''
+
+#Continue Statement
+def p_continue_stmt(p):
+    '''ContinueStmt : CONTINUE LabelOpt'''
+
+#GOto Statement
+def p_goto(p):
+    '''GotoStmt : GOTO Label'''
+
+#Fallthrough Statement
+def p_defer_stmt(p):
+    '''DeferStmt : defer Expresion'''
+
+#SourceFile organization
+def p_source_file(p):
+    '''SourceFile : PackageClause SEMICOLON ImportDeclRep TopLevelDeclRep'''
+
+def p_package_clause(p):
+    '''PackageClause : PACKAGE PackageName'''
+
+def p_package_name(p):
+    '''PackageName : identifier'''
+
+def p_imp_decl(p):
+    '''ImportDecl : IMPORT ImportSpec
+                  | IMPORT LPAREN ImportSpecRep RPAREN'''
+
+def p_imp_spec(p):
+    '''ImportSpec : PackageNameDotOpt ImportPath'''
+
+def p_imp_path(p):
+    '''ImportPath : string_re'''
