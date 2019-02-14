@@ -2,7 +2,23 @@
 
 import sys
 import ply.yacc as yacc
-from lexer import *
+import ply.lex as lex
+from lex_rules import *
+
+precedence = (
+    ('right','ASSIGN', 'NOT'),
+    ('left', 'LOR'),
+    ('left', 'LAND'),
+    ('left', 'OR'),
+    ('left', 'XOR'),
+    ('left', 'AND'),
+    ('left', 'EQL', 'NEQ'),
+    ('left', 'LSS', 'GTR','LEQ','GEQ'),
+    ('left', 'SHL', 'SHR'),
+    ('left', 'ADD', 'SUB'),
+    ('left', 'MUL', 'QUO','REM')
+)
+
 
 # Start
 def p_start(p):
@@ -14,11 +30,11 @@ def p_source_file(p):
     '''SourceFile : PackageClause SEMICOLON ImportDeclRep TopLevelDeclRep'''
 
 def p_imp_decl_rep(p):
-    '''ImportDeclRep : ImportDeclRep ImportDecl
+    '''ImportDeclRep : ImportDeclRep ImportDecl SEMICOLON
                      | empty'''
 
 def p_toplevel_decl_rep(p):
-    '''TopLevelDeclRep : TopLevelDeclRep TopLevelDecl
+    '''TopLevelDeclRep : TopLevelDeclRep TopLevelDecl SEMICOLON
                        | empty'''
 
 ## Package Clause
@@ -34,15 +50,20 @@ def p_imp_decl(p):
                   | IMPORT LPAREN ImportSpecRep RPAREN'''
 
 def p_imp_spec_rep(p):
-    '''ImportSpecRep : ImportSpec SEMICOLON ImportDeclRep'''
+    '''ImportSpecRep : ImportSpec SEMICOLON ImportDeclRep
+                     | empty'''
 
 
 def p_imp_spec(p):
-    '''ImportSpec : PackageName ImportPath
-                | PERIOD ImportPath'''
+    '''ImportSpec : PkgNameDotOpt ImportPath'''
+
+def p_pkg_name_dot(p):
+    '''PkgNameDotOpt : PERIOD
+                     | PackageName
+                     | empty'''
 
 def p_imp_path(p):
-    '''ImportPath : STRING'''
+    '''ImportPath : STRING_LIT'''
 
 # Blocks
 def p_block(p):
@@ -72,15 +93,8 @@ def p_const_spec_rep(p):
                     | empty'''
 
 def p_const_spec(p):
-    '''ConstSpec : IdentifierList TAExpListOpt'''
+    '''ConstSpec : IdentifierList Type ASSIGN ExpressionList'''
 
-def p_taexp_list_opt(p):
-    '''TAExpListOpt : TypeOpt ASSIGN ExpressionList
-                    | empty'''
-
-def p_type_opt(p):
-    '''TypeOpt : Type
-                | empty'''
 
 def p_ident_list(p):
     '''IdentifierList : IDENTIFIER IdentComRep'''
@@ -120,11 +134,11 @@ def p_type_def(p):
 ## Variable Declarations
 def p_var_decl(p):
     '''VarDecl : VAR VarSpec
-                | VAR LPAREN VarSpecRep RPAREN'''
+               | VAR LPAREN VarSpecRep RPAREN'''
 
 def p_var_spec_rep(p):
     '''VarSpecRep : VarSpec SEMICOLON VarSpecRep
-                | empty'''
+                  | empty'''
 
 def p_var_spec(p):
     '''VarSpec : IdentifierList Type ExprListOpt
@@ -136,7 +150,7 @@ def p_expr_list_opt(p):
 
 ## Short Variable Declaration
 def p_short_var_decl(p):
-    '''ShortVarDecl : IdentifierList DEFINE ExpressionList'''
+    '''ShortVarDecl : IDENTIFIER DEFINE Expression'''
 
 ## Function Declaration
 def p_func_decl(p):
@@ -148,6 +162,29 @@ def p_func_name(p):
 
 def p_func_body(p):
     '''FunctionBody : Block'''
+
+def p_signature(p):
+    '''Signature : Parameters
+                 | Parameters Type'''
+
+def p_params(p):
+    '''Parameters : LPAREN  ParameterList RPAREN
+                  | LPAREN RPAREN'''
+
+def p_param_list(p):
+    '''ParameterList : ParameterDecl
+                     | ParamDeclComRep'''
+
+def p_param_list_rep(p):
+    '''ParamDeclComRep : ParamDeclComRep COMMA ParameterDecl
+                        | ParameterDecl COMMA ParameterDecl'''
+
+def p_param_decl(p):
+    '''ParameterDecl : IdentListOpt Type'''
+
+def p_ident_list_opt(p):
+    '''IdentListOpt : IdentifierList
+                        | empty'''
 
 # Types
 def p_type(p):
@@ -162,8 +199,7 @@ def p_type_name(p):
 def p_type_lit(p):
     '''TypeLit : ArrayType
                 | StructType
-                | PointerType
-                | FunctionType'''
+                | PointerType'''
 
 ## Array Types
 def p_array_type(p):
@@ -188,45 +224,10 @@ def p_field_decl(p):
 
 ## Pointer Type
 def p_ptr_type(p):
-    '''PointerType : MUL BaseType'''
-
-def p_base_type(p):
-    '''BaseType : Type'''
+    '''PointerType : MUL Type'''
 
 ## Function Types
-def p_func_type(p):
-    '''FunctionType : FUNC Signature'''
 
-def p_signature(p):
-    '''Signature : Parameters Result'''
-
-def p_result(p):
-    '''Result : Parameters
-            | Type
-            | empty'''
-
-def p_params(p):
-    '''Parameters : LPAREN  ParameterList RPAREN
-                | LPAREN  ParameterList COMMA RPAREN
-                | LPAREN RPAREN'''
-
-def p_param_list(p):
-    '''ParameterList : ParameterDecl ParameterListRep'''
-
-def p_param_list_rep(p):
-    '''ParameterListRep : COMMA ParameterDecl ParameterListRep
-                        | empty'''
-
-def p_param_decl(p):
-    '''ParameterDecl : IdentifierListOpt EllipsisOpt Type'''
-
-def p_ident_list_opt(p):
-    '''IdentifierListOpt : IdentifierList
-                        | empty'''
-
-def p_ellipsis_opt(p):
-    '''EllipsisOpt : ELLIPSIS
-                    | empty'''
 
 # Expressions
 ## Operands
@@ -236,26 +237,22 @@ def p_operand(p) :
                 | LPAREN Expression RPAREN'''
 
 def p_literal(p):
-    '''Literal : BasicLit
-                | CompositeLit
-                | FunctionLit'''
-
-def p_basic_lit(p):
-    '''BasicLit : INT
-                | FLOAT
+    '''Literal :  INT_LIT
+                | FLOAT_LIT
                 | IMAG
-                | RUNE
+                | RUNE_LIT
                 | OCTAL
                 | HEX
-                | STRING'''
+                | STRING_LIT'''
 
 def p_operand_name(p):
     '''OperandName : IDENTIFIER
-                    | QualifiedIdent'''
+                   | QualifiedIdent'''
 
 ## Qualified identifiers
 def p_quali_ident(p):
     '''QualifiedIdent : PackageName PERIOD IDENTIFIER'''
+
 
 #Composite literals
 def p_composit_lit(p):
@@ -389,6 +386,7 @@ def p_statement(p):
                 | BreakStmt
                 | ContinueStmt
                 | GotoStmt
+                | Block
                 | IfStmt
                 | SwitchStmt
                 | ForStmt'''
@@ -495,15 +493,13 @@ def p_empty(p):
 
 def p_error(p):
     print("Syntax error in input!")
+    print(p)
 
-
-
+lexer = lex.lex()
 parser = yacc.yacc()
-while True:
-    try:
-        s = input('calc > ')
-    except EOFError:
-        break
-    if not s: continue
-    result = parser.parse(s)
-    print(result)
+
+with open('input.go','r') as fp:
+    code = fp.read()
+
+result = parser.parse(code)
+print(result)

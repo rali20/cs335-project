@@ -1,11 +1,17 @@
 import ply.lex as lex
 
+# Removed 
+# INTERFACE, FALLTHROUGH, DEFER, 
+# CHAN, RANGE, GO, SELECT, MAP
+
 keywords = {
-  'BREAK', 'CASE', 'CHAN', 'CONST', 'CONTINUE', 
-	'DEFAULT','DEFER', 'ELSE', 'FALLTHROUGH', 'FOR',
-	'FUNC', 'GO', 'GOTO', 'IF', 'IMPORT',
-	'INTERFACE', 'MAP', 'PACKAGE', 'RANGE', 'RETURN',
-	'SELECT', 'STRUCT', 'SWITCH', 'TYPE', 'VAR' }
+  'BREAK', 'CASE', 'CONST', 'CONTINUE', 'DEFAULT',
+	'ELSE', 'FOR', 'FUNC', 'GOTO', 'IF', 'IMPORT', 
+	'PACKAGE', 'RETURN', 'STRUCT', 'SWITCH', 
+	'TYPE', 'VAR' }
+	# Added
+	#'INT', 'FLOAT', 'UINT', 'COMPLEX', 'BOOL',
+	#'STRING', 'RUNE'
 
 operators = {
 	'ADD', # +
@@ -72,22 +78,17 @@ for r in keywords :
 
 types = {
   'IDENTIFIER',  # main
-  'INT',    # 12345
+  'INT_LIT',    # 12345
   'OCTAL',  # 017
   'HEX',    # 0x12abcd
-  'FLOAT',  # 123.45
+  'FLOAT_LIT',  # 123.45
   'IMAG',   # 123.45i
-  'STRING', # "abc",'abc'
-  'RUNE',  	# unicode_chars
-  'NEWLINE',#\n
-  'SPACE',	#
-  'TAB',	#\t
+  'STRING_LIT', # "abc",'abc'
+  'RUNE_LIT',  	# unicode_chars
   'COMMENT'	#//
 }
 
 tokens = list(operators) + list(types) + list(reserved.values())
-
-
 
 
 t_ignore_COMMENT = r'(/\*([^*]|\n|(\*+([^*/]|\n])))*\*+/)|(//.*)'
@@ -100,8 +101,8 @@ t_REM = r'%'
 t_AND = r'&'
 t_OR = r'\|'
 t_XOR = r'\^'
-t_LSHIFT = r'<<'
-t_RSHIFT = r'>>'
+t_SHL = r'<<'
+t_SHR = r'>>'
 t_AND_NOT = r'&\^'
 t_ADD_ASSIGN = r'\+='
 t_SUB_ASSIGN = r'-='
@@ -152,54 +153,28 @@ imag_re = "(" + int_re + "|" + float_re + ")i"
 
 string_re = r'(\"[^\"]*\")|(\'[^\']*\')'
 rune_re = r'(\'(.|(\\[abfnrtv]))\')|(\"(.|(\\[abfnrtv]))\")'
-ident_re = "[_a-zA-Z]+[a-zA-Z0-9_]*"
+identifier_re = "[_a-zA-Z]+[a-zA-Z0-9_]*"
 comment_re = r'(/\*([^*]|\n|(\*+([^*/]|\n])))*\*+/)|(//.*)'
 
 @lex.TOKEN(string_re)
-def t_STRING(t):
+def t_STRING_LIT(t):
   t.value = t.value[0:]
   return t
 
-
-
-# @lex.TOKEN(comment_re)
-# def t_COMMENT(t):
-# 	t.value = t.value.replace("\n", "<br>")
-# 	t.value = t.value.replace(" ", "&nbsp;")
-# 	t.value = t.value.replace("\t", "&emsp;&emsp;")
-# 	return t
-
-@lex.TOKEN("[\\n]+")
-def t_NEWLINE(t):
-  r'\n+'
-  t.lexer.lineno += len(t.value)
-  t.value = t.value.replace('\n', '<br>')
-  return t
-
-# @lex.TOKEN("[ ]+")
-# def t_SPACE(t):
-# 	r'[ ]+'
-# 	t.value = t.value.replace(' ', '&nbsp;')
-# 	return t;
-#
-# @lex.TOKEN("[\\t]+")
-# def t_TAB(t):
-# 	r'\t+'
-# 	t.value = t.value.replace('\t', '&emsp;&emsp;')
-# 	return t;
-
-
-@lex.TOKEN(ident_re)
-def t_IDENT(t):
+@lex.TOKEN(identifier_re)
+def t_IDENTIFIER(t):
   t.type = reserved.get(t.value, 'IDENTIFIER')
   return t
 
 @lex.TOKEN(rune_re)
-def t_RUNE(t):
+def t_RUNE_LIT(t):
   t.value = ord(t.value[1:-1])
   return t
 
-
+@lex.TOKEN("[\\n]+")
+def t_newline(t):
+  r'\n+'
+  t.lexer.lineno += len(t.value)
 
 @lex.TOKEN(imag_re)
 def t_IMAG(t):
@@ -207,25 +182,24 @@ def t_IMAG(t):
   return t
 
 @lex.TOKEN(float_re)
-def t_FLOAT(t):
+def t_FLOAT_LIT(t):
   t.value = float(t.value)
   return t
 
 @lex.TOKEN(hex_re)
 def t_HEX(t):
-  # t.value = int(t.value)
+  t.value = int(t.value,16)
   return t
 
 @lex.TOKEN(octal_re)
 def t_OCTAL(t):
-  # t.value = int(t.value)
+  t.value = int(t.value,8)
   return t
 
 @lex.TOKEN(int_re)
-def t_INT(t):
-  t.value = int(t.value)
+def t_INT_LIT(t):
+  t.value = int(t.value,10)
   return t
-
 
 
 ERROR_LIST = list([])
