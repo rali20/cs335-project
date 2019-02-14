@@ -21,38 +21,35 @@ operators = {
 	'XOR',     # ^
 	'SHL',     # <<
 	'SHR',     # >>
-	'AND_NOT', # &^
 
-	'ADD_ASSIGN', # +=
-	'SUB_ASSIGN', # -=
-	'MUL_ASSIGN', # *=
-	'QUO_ASSIGN', # /=
-	'REM_ASSIGN', # %=
+	'ADD_AGN', # +=
+	'SUB_AGN', # -=
+	'MUL_AGN', # *=
+	'QUO_AGN', # /=
+	'REM_AGN', # %=
 
-	'AND_ASSIGN',     # &=
-	'OR_ASSIGN',      # |=
-	'XOR_ASSIGN',     # ^=
-	'SHL_ASSIGN',     # <<=
-	'SHR_ASSIGN',     # >>=
-	'AND_NOT_ASSIGN', # &^=
+	'AND_AGN',     # &=
+	'OR_AGN',      # |=
+	'XOR_AGN',     # ^=
+	'SHL_AGN',     # <<=
+	'SHR_AGN',     # >>=
 
 	'LAND',  # &&
 	'LOR',   # ||
-	'ARROW', # <-
 	'INC',   # ++
 	'DEC',   # --
 
 	'EQL',    # ==
 	'LSS',    # <
 	'GTR',    # >
-	'ASSIGN', # =
+	'AGN', # =
 	'NOT',    # !
 
 	'NEQ',      # !=
 	'LEQ',      # <=
 	'GEQ',      # >=
-	'DEFINE',   # :=
-	'ELLIPSIS', # ...
+	'DEFN',   # :=
+	'ELPS', # ...
 
 	'LPRN', # (
 	'LSQR', # [
@@ -63,7 +60,7 @@ operators = {
 	'RPRN',    # )
 	'RSQR',    # ]
 	'RCURL',    # }
-	'SEMICOLON', # ;
+	'SEMCLN', # ;
 	'COLON'     # :
 }
 
@@ -71,12 +68,13 @@ reserved = {}
 for r in keywords:
 	reserved[r.lower()] = r
 
-types = {'INTEGER', 'OCTAL', 'HEX', 'FLOAT', 'STRING', 'IMAGINARY', 'RUNE'}
+types = {'INTEGER', 'OCTAL', 'HEX', 'FLOAT',
+            'STRING', 'IMAGINARY', 'RUNE'}
 
-identity = {'IDENTIFIER'}
+identity = {'IDENT'}
 
 tokens = list(operators) + list(types) + \
-              list(identity) + list(reserved.values())
+            list(identity) + list(reserved.values())
 
 t_ignore_COMMENT = r'(/\*([^*]|\n|(\*+([^*/]|\n])))*\*+/)|(//.*)'
 t_ignore = ' \t'
@@ -90,33 +88,30 @@ t_OR = r'\|'
 t_XOR = r'\^'
 t_SHL = r'<<'
 t_SHR = r'>>'
-t_AND_NOT = r'&\^'
-t_ADD_ASSIGN = r'\+='
-t_SUB_ASSIGN = r'-='
-t_MUL_ASSIGN = r'\*='
-t_QUO_ASSIGN = r'/='
-t_REM_ASSIGN = r'%='
-t_AND_ASSIGN = r'&='
-t_OR_ASSIGN = r'\|='
-t_XOR_ASSIGN = r'\^='
-t_SHL_ASSIGN = r'<<='
-t_SHR_ASSIGN = r'>>='
-t_AND_NOT_ASSIGN = r'&\^='
+t_ADD_AGN = r'\+='
+t_SUB_AGN = r'-='
+t_MUL_AGN = r'\*='
+t_QUO_AGN = r'/='
+t_REM_AGN = r'%='
+t_AND_AGN = r'&='
+t_OR_AGN = r'\|='
+t_XOR_AGN = r'\^='
+t_SHL_AGN = r'<<='
+t_SHR_AGN = r'>>='
 t_LAND = r'&&'
 t_LOR = r'\|\|'
-t_ARROW = r'<-'
 t_INC = r'\+\+'
 t_DEC = r'--'
 t_EQL = r'=='
 t_LSS = r'<'
 t_GTR = r'>'
-t_ASSIGN = r'='
+t_AGN = r'='
 t_NOT = r'!'
 t_NEQ = r'!='
 t_LEQ = r'<='
 t_GEQ = r'>='
-t_DEFINE = r':='
-t_ELLIPSIS = r'\.\.\.'
+t_DEFN = r':='
+t_ELPS = r'\.\.\.'
 t_LPRN = r'\('
 t_LSQR = r'\['
 t_LCURL = r'\{'
@@ -125,7 +120,7 @@ t_DOT = r'\.'
 t_RPRN = r'\)'
 t_RSQR = r'\]'
 t_RCURL = r'\}'
-t_SEMICOLON = r';'
+t_SEMCLN = r';'
 t_COLON = r':'
 
 decimal_lit = "(0|([1-9][0-9]*))"
@@ -140,8 +135,8 @@ identifier_lit = "[_a-zA-Z]+[a-zA-Z0-9_]*"
 imaginary_lit = "(" + decimal_lit + "|" + float_lit + ")i"
 
 @lex.TOKEN(identifier_lit)
-def t_IDENTIFIER(t):
-    t.type = reserved.get(t.value, 'IDENTIFIER')
+def t_IDENT(t):
+    t.type = reserved.get(t.value, 'IDENT')
     return t
 
 @lex.TOKEN(rune_lit)
