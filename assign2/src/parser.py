@@ -193,8 +193,18 @@ def p_type(p):
             | LPAREN Type RPAREN'''
 
 def p_type_name(p):
-    '''TypeName : IDENTIFIER
+    '''TypeName : Builtin
                 | QualifiedIdent'''
+
+def p_builtin(p):
+    '''Builtin : INT
+               | FLOAT
+               | UINT
+               | COMPLEX
+               | RUNE
+               | BOOL
+               | STRING
+               | TYPE IDENTIFIER'''
 
 def p_type_lit(p):
     '''TypeLit : ArrayType
@@ -233,7 +243,7 @@ def p_ptr_type(p):
 ## Operands
 def p_operand(p) :
     '''Operand : Literal
-                | OperandName
+                | IDENTIFIER
                 | LPAREN Expression RPAREN'''
 
 def p_literal(p):
@@ -245,13 +255,10 @@ def p_literal(p):
                 | HEX
                 | STRING_LIT'''
 
-def p_operand_name(p):
-    '''OperandName : IDENTIFIER
-                   | QualifiedIdent'''
 
 ## Qualified identifiers
 def p_quali_ident(p):
-    '''QualifiedIdent : PackageName PERIOD IDENTIFIER'''
+    '''QualifiedIdent : IDENTIFIER PERIOD TypeName'''
 
 
 ## Primary Expressions
