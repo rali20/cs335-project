@@ -262,8 +262,8 @@ def p_composit_lit(p):
     '''CompositeLit : LiteralType LiteralValue'''
 
 def p_lit_type(p):
-    '''LiteralType : StructType 
-                    | ArrayType 
+    '''LiteralType : StructType
+                    | ArrayType
                     | LBRACK ELLIPSIS RBRACK ElementType
                     | TypeName'''
 
@@ -283,7 +283,7 @@ def p_keyed_element(p):
                     | Key COLON Element'''
 
 def p_key(p):
-    '''Key : FieldName 
+    '''Key : FieldName
             | Expression
             | LiteralValue'''
 
@@ -291,8 +291,8 @@ def p_field_name(p):
     '''FieldName : IDENTIFIER'''
 
 def p_element(p):
-    '''Element : Expression 
-               | LiteralValue''' 
+    '''Element : Expression
+               | LiteralValue'''
 
 ## Function literals
 def p_func_lit(p):
@@ -455,7 +455,7 @@ def p_forclause(p):
     '''ForClause : SimpleStmt SEMICOLON ConditionOpt SEMICOLON SimpleStmt'''
 
 def p_cond_opt(p):
-    '''ConditionOpt : Expression 
+    '''ConditionOpt : Expression
                     | empty'''
 
 ## Return Statement
