@@ -291,10 +291,11 @@ DeferStmt = "defer" Expression .
 ## Source file organization
 SourceFile       = PackageClause ";" { ImportDecl ";" } { TopLevelDecl ";" } 
 
+## PackageClause
 PackageClause  = "package" PackageName .
 PackageName    = identifier .
 
+## Import Declaration
 ImportDecl       = "import" ( ImportSpec | "(" { ImportSpec ";" } ")" ) .
 ImportSpec       = [ "." | PackageName ] ImportPath .
 ImportPath       = string_lit .
-

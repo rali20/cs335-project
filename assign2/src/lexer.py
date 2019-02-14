@@ -1,10 +1,11 @@
 import ply.lex as lex
 
 keywords = {
-  'BREAK', 'CASE', 'CHAN', 'CONST', 'CONTINUE', 'DEFAULT',
-  'DEFER', 'ELSE', 'FALLTHROUGH', 'FOR', 'FUNC', 'GO', 'GOTO',
-  'IF', 'IMPORT', 'INTERFACE', 'MAP', 'PACKAGE', 'RANGE',
-  'RETURN', 'SELECT', 'STRUCT', 'SWITCH', 'TYPE', 'VAR' }
+  'BREAK', 'CASE', 'CHAN', 'CONST', 'CONTINUE', 
+	'DEFAULT','DEFER', 'ELSE', 'FALLTHROUGH', 'FOR',
+	'FUNC', 'GO', 'GOTO', 'IF', 'IMPORT',
+	'INTERFACE', 'MAP', 'PACKAGE', 'RANGE', 'RETURN',
+	'SELECT', 'STRUCT', 'SWITCH', 'TYPE', 'VAR' }
 
 operators = {
 	'ADD', # +
@@ -29,8 +30,8 @@ operators = {
 	'AND_ASSIGN',     # &=
 	'OR_ASSIGN',      # |=
 	'XOR_ASSIGN',     # ^=
-	'LSHIFT_ASSIGN',     # <<=
-	'RSHIFT_ASSIGN',     # >>=
+	'SHL_ASSIGN',     # <<=
+	'SHR_ASSIGN',     # >>=
 	'AND_NOT_ASSIGN', # &^=
 
 	'LAND',  # &&
