@@ -1,22 +1,71 @@
 import sys
 import ply.lex as lex
 
-keywords = {'STRUCT', 'FUNC', 'CONST', 'TYPE', 'VAR',
-            'IF', 'ELSE', 'SWITCH', 'CASE', 'PRINT', 'SCAN',
-            'DEFAULT', 'FOR', 'RETURN', 'BREAK', 'CONTINUE',
-            'GOTO', 'PACKAGE', 'IMPORT', 'INT_T', 'FLOAT_T',
-            'UINT_T', 'COMPLEX_T', 'RUNE_T', 'BOOL_T', 'STRING_T', 'TYPECAST'}
+keywords = {
+    'BREAK', 'CASE', 'CONST', 'CONTINUE', 'DEFAULT',
+	'ELSE', 'FOR', 'FUNC', 'GOTO', 'IF', 'IMPORT',
+	'PACKAGE', 'RETURN', 'STRUCT', 'SWITCH',
+	'TYPE', 'VAR',
+    'INT_T', 'FLOAT_T', 'UINT_T', 'COMPLEX_T',
+    'RUNE_T', 'BOOL_T', 'STRING_T', 'TYPECAST' }
 
-operators = {'PLUS', 'MINUS', 'STAR', 'DIVIDE', 'MOD',
-            'ASSIGN', 'AND', 'LOGICAL_AND', 'INCR', 'DECR',
-             'LPAREN', 'RPAREN', 'OR', 'XOR', 'LSHIFT', 'RSHIFT',
-              'PLUS_ASSIGN', 'MINUS_ASSIGN', 'STAR_ASSIGN',
-              'DIVIDE_ASSIGN', 'MOD_ASSIGN', 'AND_ASSIGN', 'OR_ASSIGN',
-              'XOR_ASSIGN', 'LSHIFT_ASSIGN', 'RSHIFT_ASSIGN', 'LOGICAL_OR',
-              'EQUALS', 'LESSER', 'GREATER', 'NOT', 'NOT_ASSIGN',
-              'LESS_EQUALS', 'MORE_EQUALS', 'QUICK_ASSIGN',
-              'LSQUARE', 'RSQUARE', 'LCURL',
-             'RCURL', 'COMMA', 'DOT', 'SEMICOLON', 'COLON'}
+operators = {
+	'ADD', # +
+	'SUB', # -
+	'MUL', # *
+	'QUO', # /
+	'REM', # %
+
+	'AND',     # &
+	'OR',      # |
+	'XOR',     # ^
+	'SHL',     # <<
+	'SHR',     # >>
+	'AND_NOT', # &^
+
+	'ADD_ASSIGN', # +=
+	'SUB_ASSIGN', # -=
+	'MUL_ASSIGN', # *=
+	'QUO_ASSIGN', # /=
+	'REM_ASSIGN', # %=
+
+	'AND_ASSIGN',     # &=
+	'OR_ASSIGN',      # |=
+	'XOR_ASSIGN',     # ^=
+	'SHL_ASSIGN',     # <<=
+	'SHR_ASSIGN',     # >>=
+	'AND_NOT_ASSIGN', # &^=
+
+	'LAND',  # &&
+	'LOR',   # ||
+	'ARROW', # <-
+	'INC',   # ++
+	'DEC',   # --
+
+	'EQL',    # ==
+	'LSS',    # <
+	'GTR',    # >
+	'ASSIGN', # =
+	'NOT',    # !
+
+	'NEQ',      # !=
+	'LEQ',      # <=
+	'GEQ',      # >=
+	'DEFINE',   # :=
+	'ELLIPSIS', # ...
+
+	'LPRN', # (
+	'LSQR', # [
+	'LCURL', # {
+	'COMMA',  # ,
+	'DOT', # .
+
+	'RPRN',    # )
+	'RSQR',    # ]
+	'RCURL',    # }
+	'SEMICOLON', # ;
+	'COLON'     # :
+}
 
 reserved = {}
 for r in keywords:
@@ -31,47 +80,51 @@ tokens = list(operators) + list(types) + \
 
 t_ignore_COMMENT = r'(/\*([^*]|\n|(\*+([^*/]|\n])))*\*+/)|(//.*)'
 t_ignore = ' \t'
-t_PLUS = r'\+'
-t_MINUS = r'-'
-t_STAR = r'\*'
-t_DIVIDE = r'/'
-t_MOD = r'%'
-t_ASSIGN = r'='
+t_ADD = r'\+'
+t_SUB = r'-'
+t_MUL = r'\*'
+t_QUO = r'/'
+t_REM = r'%'
 t_AND = r'&'
-t_LOGICAL_AND = r'&&'
-t_INCR = r'\+\+'
-t_DECR = r'--'
-t_LPAREN = r'\('
-t_RPAREN = r'\)'
 t_OR = r'\|'
 t_XOR = r'\^'
-t_LSHIFT = r'<<'
-t_RSHIFT = r'>>'
-t_PLUS_ASSIGN = r'\+='
-t_MINUS_ASSIGN = r'-='
-t_STAR_ASSIGN = r'\*='
-t_DIVIDE_ASSIGN = r'/='
-t_MOD_ASSIGN = r'%='
+t_SHL = r'<<'
+t_SHR = r'>>'
+t_AND_NOT = r'&\^'
+t_ADD_ASSIGN = r'\+='
+t_SUB_ASSIGN = r'-='
+t_MUL_ASSIGN = r'\*='
+t_QUO_ASSIGN = r'/='
+t_REM_ASSIGN = r'%='
 t_AND_ASSIGN = r'&='
 t_OR_ASSIGN = r'\|='
 t_XOR_ASSIGN = r'\^='
-t_LSHIFT_ASSIGN = r'<<='
-t_RSHIFT_ASSIGN = r'>>='
-t_LOGICAL_OR = r'\|\|'
-t_EQUALS = r'=='
-t_LESSER = r'<'
-t_GREATER = r'>'
+t_SHL_ASSIGN = r'<<='
+t_SHR_ASSIGN = r'>>='
+t_AND_NOT_ASSIGN = r'&\^='
+t_LAND = r'&&'
+t_LOR = r'\|\|'
+t_ARROW = r'<-'
+t_INC = r'\+\+'
+t_DEC = r'--'
+t_EQL = r'=='
+t_LSS = r'<'
+t_GTR = r'>'
+t_ASSIGN = r'='
 t_NOT = r'!'
-t_NOT_ASSIGN = r'!='
-t_LESS_EQUALS = r'<='
-t_MORE_EQUALS = r'>='
-t_QUICK_ASSIGN = r':='
-t_LSQUARE = r'\['
-t_RSQUARE = r'\]'
+t_NEQ = r'!='
+t_LEQ = r'<='
+t_GEQ = r'>='
+t_DEFINE = r':='
+t_ELLIPSIS = r'\.\.\.'
+t_LPRN = r'\('
+t_LSQR = r'\['
 t_LCURL = r'\{'
-t_RCURL = r'\}'
 t_COMMA = r','
 t_DOT = r'\.'
+t_RPRN = r'\)'
+t_RSQR = r'\]'
+t_RCURL = r'\}'
 t_SEMICOLON = r';'
 t_COLON = r':'
 
@@ -133,3 +186,5 @@ def t_newline(t):
 def t_error(t):
     print("Illegal Character")
     t.lexer.skip(1)
+
+lexer = lex.lex()

@@ -4,20 +4,20 @@ import pydot
 import ply.yacc as yacc
 
 import node_def as nd
-from lexer import *
+from new_lexer import *
 
 precedence = (
     ('right','ASSIGN', 'NOT'),
-    ('left', 'LOGICAL_OR'),
-    ('left', 'LOGICAL_AND'),
+    ('left', 'LOR'),
+    ('left', 'LAND'),
     ('left', 'OR'),
     ('left', 'XOR'),
     ('left', 'AND'),
-    ('left', 'EQUALS', 'NOT_ASSIGN'),
-    ('left', 'LESSER', 'GREATER','LESS_EQUALS','MORE_EQUALS'),
-    ('left', 'LSHIFT', 'RSHIFT'),
-    ('left', 'PLUS', 'MINUS'),
-    ('left', 'STAR', 'DIVIDE','MOD')
+    ('left', 'EQL', 'NEQ'),
+    ('left', 'LSS', 'GTR','LEQ','GEQ'),
+    ('left', 'SHL', 'SHR'),
+    ('left', 'ADD', 'SUB'),
+    ('left', 'MUL', 'QUO','REM')
 )
 
 def p_start(p):
@@ -27,7 +27,7 @@ def p_start(p):
 def p_type(p):
     '''Type : TypeName
             | TypeLit
-            | LPAREN Type RPAREN'''
+            | LPRN Type RPRN'''
     if len(p) == 2 :
         p[0] = p[1]
 
@@ -62,7 +62,7 @@ def p_type_opt(p):
         p[0] = p[1]
 
 def p_array_type(p):
-  '''ArrayType : LSQUARE ArrayLength RSQUARE ElementType'''
+  '''ArrayType : LSQR ArrayLength RSQR ElementType'''
 
 def p_array_length(p):
   ''' ArrayLength : Expression '''
@@ -81,7 +81,7 @@ def p_field_decl(p):
   ''' FieldDecl : IdentifierList Type'''
 
 def p_point_type(p):
-    '''PointerType : STAR BaseType'''
+    '''PointerType : MUL BaseType'''
 
 def p_base_type(p):
     '''BaseType : Type'''
@@ -90,7 +90,7 @@ def p_sign(p):
     '''Signature : Parameters TypeOpt'''
 
 def p_params(p):
-    '''Parameters : LPAREN ParameterListOpt RPAREN'''
+    '''Parameters : LPRN ParameterListOpt RPRN'''
 
 def p_param_list_opt(p):
     '''ParameterListOpt : ParametersList
@@ -129,7 +129,7 @@ def p_toplevel_decl(p):
 
 def p_const_decl(p):
     '''ConstDecl : CONST ConstSpec
-                 | CONST LPAREN ConstSpecRep RPAREN'''
+                 | CONST LPRN ConstSpecRep RPRN'''
 
 def p_const_spec_rep(p):
     '''ConstSpecRep : ConstSpecRep ConstSpec SEMICOLON
@@ -154,7 +154,7 @@ def p_expr_rep(p):
 
 def p_type_decl(p):
     '''TypeDecl : TYPE TypeSpec
-                | TYPE LPAREN TypeSpecRep RPAREN'''
+                | TYPE LPRN TypeSpecRep RPRN'''
 
 def p_type_spec_rep(p):
     '''TypeSpecRep : TypeSpecRep TypeSpec SEMICOLON
@@ -168,7 +168,7 @@ def p_type_def(p):
 
 def p_var_decl(p):
     '''VarDecl : VAR VarSpec
-               | VAR LPAREN VarSpecRep RPAREN'''
+               | VAR LPRN VarSpecRep RPRN'''
 
 def p_var_spec_rep(p):
     '''VarSpecRep : VarSpecRep VarSpec SEMICOLON
@@ -183,7 +183,7 @@ def p_expr_list_opt(p):
                          | epsilon'''
 
 def p_short_var_decl(p):
-  ''' ShortVarDecl : IDENTIFIER QUICK_ASSIGN Expression '''
+  ''' ShortVarDecl : IDENTIFIER DEFINE Expression '''
 
 def p_func_decl(p):
     '''FunctionDecl : FUNC FunctionName  Function
@@ -201,7 +201,7 @@ def p_func_body(p):
 def p_operand(p):
     '''Operand : Literal
                | OperandName
-               | LPAREN Expression RPAREN'''
+               | LPRN Expression RPRN'''
 
 def p_literal(p):
     '''Literal : BasicLit'''
@@ -225,20 +225,20 @@ def p_prim_expr(p):
     '''PrimaryExpr : Operand
                    | PrimaryExpr Selector
                    | Conversion
-                   | PrimaryExpr LSQUARE Expression RSQUARE
+                   | PrimaryExpr LSQR Expression RSQR
                    | PrimaryExpr Slice
                    | PrimaryExpr TypeAssertion
-                   | PrimaryExpr LPAREN ExpressionListTypeOpt RPAREN'''
+                   | PrimaryExpr LPRN ExpressionListTypeOpt RPRN'''
 
 def p_selector(p):
     '''Selector : DOT IDENTIFIER'''
 
 def p_slice(p):
-    '''Slice : LSQUARE ExpressionOpt COLON ExpressionOpt RSQUARE
-             | LSQUARE ExpressionOpt COLON Expression COLON Expression RSQUARE'''
+    '''Slice : LSQR ExpressionOpt COLON ExpressionOpt RSQR
+             | LSQR ExpressionOpt COLON Expression COLON Expression RSQR'''
 
 def p_type_assert(p):
-    '''TypeAssertion : DOT LPAREN Type RPAREN'''
+    '''TypeAssertion : DOT LPRN Type RPRN'''
 
 def p_expr_list_type_opt(p):
     '''ExpressionListTypeOpt : ExpressionList
@@ -246,23 +246,23 @@ def p_expr_list_type_opt(p):
 
 def p_expr(p):
     '''Expression : UnaryExpr
-                  | Expression LOGICAL_OR Expression
-                  | Expression LOGICAL_AND Expression
-                  | Expression EQUALS Expression
-                  | Expression NOT_ASSIGN Expression
-                  | Expression LESSER Expression
-                  | Expression GREATER Expression
-                  | Expression LESS_EQUALS Expression
-                  | Expression MORE_EQUALS Expression
+                  | Expression LOR Expression
+                  | Expression LAND Expression
+                  | Expression NEQ Expression
+                  | Expression EQL Expression
+                  | Expression LSS Expression
+                  | Expression GTR Expression
+                  | Expression LEQ Expression
+                  | Expression GEQ Expression
                   | Expression OR Expression
                   | Expression XOR Expression
-                  | Expression DIVIDE Expression
-                  | Expression MOD Expression
-                  | Expression LSHIFT Expression
-                  | Expression RSHIFT Expression
-                  | Expression PLUS Expression
-                  | Expression MINUS Expression
-                  | Expression STAR Expression
+                  | Expression QUO Expression
+                  | Expression REM Expression
+                  | Expression SHL Expression
+                  | Expression SHR Expression
+                  | Expression ADD Expression
+                  | Expression SUB Expression
+                  | Expression MUL Expression
                   | Expression AND Expression'''
 
 def p_expr_opt(p):
@@ -275,13 +275,13 @@ def p_unary_expr(p):
                  | NOT UnaryExpr'''
 
 def p_unary_op(p):
-    '''UnaryOp : PLUS
-               | MINUS
-               | STAR
+    '''UnaryOp : ADD
+               | SUB
+               | MUL
                | AND '''
 
 def p_conversion(p):
-    '''Conversion : TYPECAST Type LPAREN Expression RPAREN'''
+    '''Conversion : TYPECAST Type LPRN Expression RPRN'''
 
 def p_statement(p):
     '''Statement : Declaration
@@ -313,8 +313,8 @@ def p_expression_stmt(p):
   ''' ExpressionStmt : Expression '''
 
 def p_inc_dec(p):
-  ''' IncDecStmt : Expression INCR
-                 | Expression DECR '''
+  ''' IncDecStmt : Expression INC
+                 | Expression DEC '''
 
 def p_goto(p):
   '''GotoStmt : GOTO Label '''
@@ -326,16 +326,16 @@ def p_assign_op(p):
   ''' assign_op : AssignOp'''
 
 def p_AssignOp(p):
-  ''' AssignOp : PLUS_ASSIGN
-               | MINUS_ASSIGN
-               | STAR_ASSIGN
-               | DIVIDE_ASSIGN
-               | MOD_ASSIGN
+  ''' AssignOp : ADD_ASSIGN
+               | SUB_ASSIGN
+               | MUL_ASSIGN
+               | QUO_ASSIGN
+               | REM_ASSIGN
                | AND_ASSIGN
                | OR_ASSIGN
                | XOR_ASSIGN
-               | LSHIFT_ASSIGN
-               | RSHIFT_ASSIGN
+               | SHL_ASSIGN
+               | SHR_ASSIGN
                | ASSIGN '''
 
 def p_if_statement(p):
@@ -417,7 +417,7 @@ def p_package_name(p):
 
 def p_import_decl(p):
   '''ImportDecl : IMPORT ImportSpec
-          | IMPORT LPAREN ImportSpecRep RPAREN '''
+          | IMPORT LPRN ImportSpecRep RPRN '''
 
 def p_import_spec_rep(p):
   ''' ImportSpecRep : ImportSpecRep ImportSpec SEMICOLON
