@@ -8,10 +8,10 @@ keywords = {
   'BREAK', 'CASE', 'CONST', 'CONTINUE', 'DEFAULT',
 	'ELSE', 'FOR', 'FUNC', 'GOTO', 'IF', 'IMPORT', 
 	'PACKAGE', 'RETURN', 'STRUCT', 'SWITCH', 
-	'TYPE', 'VAR' }
+	'TYPE', 'VAR',
 	# Added
-	#'INT', 'FLOAT', 'UINT', 'COMPLEX', 'BOOL',
-	#'STRING', 'RUNE'
+	'INT', 'FLOAT', 'UINT', 'COMPLEX', 'BOOL',
+	'STRING', 'RUNE' }
 
 operators = {
 	'ADD', # +
