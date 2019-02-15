@@ -1,8 +1,9 @@
-package fac;
+package fac
 
-import (
-	"fmt";
-);
+// import (
+// 	"fmt";
+// );
+// import "fmt";
 
 // func fact(n int_t) int_t {
 // 	if n==1 {
@@ -13,4 +14,4 @@ import (
 //
 func main(n int_t) int_t {
 	// var n int_t;
-};
+}
