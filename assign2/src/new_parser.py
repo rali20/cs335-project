@@ -108,7 +108,7 @@ def p_params(p):
     '''Parameters : LPRN RPRN
                   | LPRN ParamList RPRN'''
     if len(p) > 3 :
-        p[0] = p[2]
+        p[0] = nd.one_child_node(p[2], "Parameters")
     else :
         p[0] = nd.node("NULL")
 
@@ -135,13 +135,13 @@ def p_param_decl(p):
 
 def p_block(p):
     '''Block : LCURL StmtList RCURL'''
-    p[0] = p[1]
+    p[0] = p[2]
 
 def p_stat_rep(p):
     '''StmtList : Statement SEMCLN StmtList
                      | epsilon'''
     if len(p) > 2 :
-        p[0] = nd.two_child_node(p[1],p[0],"Statements")
+        p[0] = nd.two_child_node(p[1],p[3],"Statements")
     else :
         p[0] = p[1]
 
@@ -179,7 +179,8 @@ def p_const_spec(p):
 
 def p_ident_list(p):
     '''IdentList : IDENT IdentRep'''
-    p[0] = nd.two_child_node(p[1], p[2], "IdentifierList")
+    leaf_node = nd.node(p[1])
+    p[0] = nd.two_child_node(leaf_node, p[2], "IdentifierList")
 
 def p_ident_rep(p):
     '''IdentRep : COMMA IDENT IdentRep
@@ -200,10 +201,16 @@ def p_expr_list(p):
 def p_type_decl(p):
     '''TypeDecl : TYPE TypeSpec
                 | TYPE LPRN TypeSpecRep RPRN'''
+    if len(p) < 4 :
+        p[0] = p[2]
+    else :
+        p[0] = p[3]
 
 def p_type_spec_rep(p):
-    '''TypeSpecRep : TypeSpecRep TypeSpec SEMCLN
+    '''TypeSpecRep : TypeSpec SEMCLN TypeSpecRep
                    | epsilon'''
+    if len(p) > 2:
+        p[0] = nd.two_child_node(p[1],p[3],"TypeSpecs")
 
 def p_type_spec(p):
     '''TypeSpec : TypeDef'''
@@ -211,38 +218,43 @@ def p_type_spec(p):
 
 def p_type_def(p):
     '''TypeDef : IDENT Type'''
-    p[0] = nd.two_child_node(p[1], p[2], "Typedef")
+    leaf_node = nd.node(p[1])
+    p[0] = nd.two_child_node(leaf_node, p[2], "Typedef")
 
 def p_var_decl(p):
     '''VarDecl : VAR VarSpec
                | VAR LPRN VarSpecRep RPRN'''
+    if len(p) < 4 :
+        p[0] = p[2]
+    else :
+        p[0] = p[3]
 
 def p_var_spec_rep(p):
-    '''VarSpecRep : VarSpecRep VarSpec SEMCLN
+    '''VarSpecRep : VarSpec SEMCLN VarSpecRep
                   | epsilon'''
+    if len(p) > 2 :
+        p[0] = nd.two_child_node(p[1],p[3],"VarSpecs")
 
 def p_var_spec(p):
-    '''VarSpec : IdentList Type ExprListOpt
-               | IdentList AGN ExprList'''
-
-def p_expr_list_opt(p):
-    '''ExprListOpt : AGN ExprList
-                         | epsilon'''
+    '''VarSpec : IdentList Type AGN ExprList
+               | IdentList AGN ExprList
+               | IdentList Type'''
+    if len(p) == 5:
+        p[0] = nd.three_child_node(p[1],p[2],p[3],"VarSpecs")
+    elif len(p) == 4 :
+        p[0] = nd.two_child_node(p[1],p[3],"VarSpecInfer")
+    else :
+        p[0] = nd.two_child_node(p[1],p[2],"VarSpec")
 
 def p_short_var_decl(p):
   ''' ShortVarDecl : IDENT DEFN Expr '''
+  p[0] = p[0] = nd.two_child_node(p[1],p[3],"ShortVarDecl")
 
 def p_func_decl(p):
     '''FuncDecl : FUNC FuncName  Signature  FuncBody
                     | FUNC FuncName  Signature '''
     if len(p) == 5 :
         p[0] = nd.three_child_node(p[2],p[3],p[4],"Function")
-        print("\n\n function:")
-        print(p[0])
-        print(p[1])
-        print(p[2])
-        print(p[3])
-        print(p[4])
     else :
         p[0] = nd.two_child_node(p[2], p[3], "FuncDecl")
 
@@ -257,12 +269,18 @@ def p_func_body(p):
 def p_method_decl(p):
     '''MethodDecl : FUNC Receiver MethodName Signature
                   | FUNC Receiver MethodName Signature FuncBody'''
+    if len(p)==5:
+        p[0] = nd.three_child_node(p[2], p[3], p[4], "MethodDecl")
+    else:
+        p[0] = nd.four_child_node(p[2], p[3], p[4], p[5], "MethodDecl")
 
 def p_receiver(p):
     '''Receiver : Parameters'''
+    p[0] = p[1]
 
 def p_method_name(p):
     '''MethodName : IDENT'''
+    p[0] = p[1]
 
 def p_operand(p):
     '''Operand : Literal
@@ -298,11 +316,18 @@ def p_quali_ident(p):
 def p_prim_expr(p):
     '''PmryExpr : Operand
                    | Conversion
+                   | MethodExpr
                    | PmryExpr Slice
                    | PmryExpr Selector
                    | PmryExpr TypeAssertion
                    | PmryExpr LSQR Expr RSQR
                    | PmryExpr LPRN ExprListTypeOpt RPRN'''
+    if len(p) == 2:
+        p[0] = p[1]
+    elif len(p)==3:
+        p[0] = nd.two_child_node(p[1], p[2], "PrimaryExpr")
+    elif len(p)==5:
+        p[0] = nd.two_child_node(p[1], p[3], "PrimaryExpr")
 
 def p_selector(p):
     '''Selector : DOT IDENT'''
@@ -312,13 +337,27 @@ def p_selector(p):
 def p_slice(p):
     '''Slice : LSQR ExprOpt COLON ExprOpt RSQR
              | LSQR ExprOpt COLON Expr COLON Expr RSQR'''
+    if len(p)==6:
+        p[0] = nd.two_child_node(p[2], p[4], "Slice")
+    else:
+        p[0] = nd.three_child_node(p[2], p[4], p[6], "Slice")
 
 def p_type_assert(p):
     '''TypeAssertion : DOT LPRN Type RPRN'''
+    p[0] = p[3]
 
 def p_expr_list_type_opt(p):
     '''ExprListTypeOpt : ExprList
                              | epsilon'''
+    p[0] = p[1]
+
+def p_method_expr(p):
+    '''MethodExpr : ReceiverType DOT MethodName'''
+    p[0] = nd.two_child_node(p[1],p[3],"MethodExpr")
+
+def p_receiver_type(p):
+    '''ReceiverType : Type'''
+    p[0] = p[1]
 
 def p_expr(p):
     '''Expr : UnaryExpr
@@ -412,9 +451,11 @@ def p_inc_dec(p):
 
 def p_goto(p):
   '''GotoStmt : GOTO Label '''
+  p[0] = nd.one_child_node(p[2], "GoToStmt")
 
 def p_assignment(p):
   ''' Assignment : ExprList AssignOp ExprList'''
+  p[0] = three_child_node(p[1],p[3],p[2])
 
 def p_assign_op(p):
   ''' AssignOp : ADD_AGN
@@ -434,6 +475,8 @@ def p_if_statement(p):
   ''' IfStmt : IF Expr Block  ElseOpt'''
   p[0] = nd.three_child_node(p[2], p[3], p[4], "IfStmt")
 
+# global ast_ifstmt = { 'condition': None,
+#             'block' : None, 'else' : None  }
 
 def p_else_opt(p):
   ''' ElseOpt : ELSE IfStmt
@@ -446,38 +489,57 @@ def p_else_opt(p):
 
 def p_switch_statement(p):
   ''' SwitchStmt : ExprSwitchStmt '''
+  p[0] = p[1]
 
 def p_expr_switch_stmt(p):
   ''' ExprSwitchStmt : SWITCH Expr  LCURL ExprCaseClauseRep RCURL  '''
+  p[0] = nd.two_child_node(p[2], p[4], "ExprSwitchStmt")
 
 def p_expr_case_clause_rep(p):
   ''' ExprCaseClauseRep : ExprCaseClauseRep ExprCaseClause
                         | epsilon'''
+  if len(p) == 1:
+      p[0] = p[1]
+  else:
+      p[0] = nd.two_child_node(p[1], p[2], "CaseClause")
 
 def p_expr_case_clause(p):
   ''' ExprCaseClause : ExprSwitchCase COLON StmtList '''
+  p[0] = nd.two_child_node(p[1], p[3], "ExprCaseClause")
 
 def p_expr_switch_case(p):
   ''' ExprSwitchCase : CASE Expr
                      | DEFAULT '''
+  if len(p) == 3:
+      p[0] = nd.one_child_node(p[2],"Case")
+  else :
+      p[0] = nd.node("Default")
 
 def p_for(p):
-  '''ForStmt : FOR  CondBlkOpt Block '''
+  '''ForStmt : FOR  CondBlk Block
+             | FOR Block'''
+  if len(p) > 3 :
+      p[0] = nd.two_child_node(p[2],p[3],"ForStmt")
+  else :
+      p[0] = nd.one_child_node(p[2],"InfLoop")
+
 
 def p_cond_blk_opt(p):
-  '''CondBlkOpt : epsilon
-             | Condition
+  '''CondBlk : Condition
              | ForClause'''
+  p[0] = p[1]
 
 def p_condition(p):
   '''Condition : Expr '''
+  p[0] = p[1]
 
 def p_forclause(p):
   '''ForClause : SimpleStmt SEMCLN SEMCLN SimpleStmt
                | SimpleStmt SEMCLN Condition SEMCLN SimpleStmt'''
   if len(p) > 5:
-      if not (p[1] or p[4]) :
-          pass
+      p[0] = nd.three_child_node(p[1],p[3],p[5],"ForClause")
+  else :
+      p[0] = nd.two_child_node(p[1],p[4],"InfLoopFor")
 
 def p_return(p):
   '''ReturnStmt : RETURN
@@ -507,11 +569,14 @@ def p_source_file(p):
     '''SourceFile : PkgClause SEMCLN ImportDeclRep TopLvlDeclRep'''
     p[0] = nd.three_child_node(p[1],p[3],p[4],"SourceFile")
 
+global ast_imports
+ast_imports = []
+
 def p_import_decl_rep(p):
   '''ImportDeclRep : epsilon
-           | ImportDeclRep ImportDecl SEMCLN'''
+           |  ImportDecl SEMCLN ImportDeclRep'''
   if len(p) > 2 :
-      p[0] = nd.two_child_node(p[1],p[2],"ImportDecls")
+      p[0] = nd.two_child_node(p[1],p[3],"ImportDecls")
   else :
       p[0] = p[1]
 
@@ -537,6 +602,7 @@ def p_import_decl(p):
                 | IMPORT LPRN ImportSpecRep RPRN '''
   if len(p)==3:
       p[0] = nd.two_child_node(nd.node(p[1]), p[2], "ImportDecl")
+      # ast_imports.append(p[2])
   else:
       p[0] = nd.two_child_node(nd.node(p[1]), p[3], "ImportDecl")
 
