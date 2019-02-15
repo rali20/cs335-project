@@ -234,8 +234,14 @@ def p_short_var_decl(p):
 def p_func_decl(p):
     '''FuncDecl : FUNC FuncName  Signature  FuncBody
                     | FUNC FuncName  Signature '''
-    if len(p) > 4 :
-        p[0] = nd.three_child_node(p[2],p[3],[4],"FuncDef")
+    if len(p) == 5 :
+        p[0] = nd.three_child_node(p[2],p[3],p[4],"Function")
+        print("\n\n function:")
+        print(p[0])
+        print(p[1])
+        print(p[2])
+        print(p[3])
+        print(p[4])
     else :
         p[0] = nd.two_child_node(p[2], p[3], "FuncDecl")
 
@@ -415,11 +421,17 @@ def p_assign_op(p):
 
 def p_if_statement(p):
   ''' IfStmt : IF Expr Block  ElseOpt'''
+  p[0] = nd.three_child_node(p[2], p[3], p[4], "IfStmt")
+
 
 def p_else_opt(p):
   ''' ElseOpt : ELSE IfStmt
               | ELSE  Block
               | epsilon '''
+  if len(p)==2:
+      p[0] = p[1]
+  else:
+      p[0] = p[2]
 
 def p_switch_statement(p):
   ''' SwitchStmt : ExprSwitchStmt '''
