@@ -49,7 +49,7 @@ operators = {
 	'LEQ',      # <=
 	'GEQ',      # >=
 	'DEFN',   # :=
-	'ELPS', # ...
+	# 'ELPS', # ...
 
 	'LPRN', # (
 	'LSQR', # [
@@ -109,7 +109,7 @@ t_NEQ = r'!='
 t_LEQ = r'<='
 t_GEQ = r'>='
 t_DEFN = r':='
-t_ELPS = r'\.\.\.'
+# t_ELPS = r'\.\.\.'
 t_LPRN = r'\('
 t_LSQR = r'\['
 t_LCURL = r'\{'

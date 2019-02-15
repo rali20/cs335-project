@@ -317,7 +317,6 @@ def p_quali_ident(p):
 def p_prim_expr(p):
     '''PmryExpr : Operand
                    | Conversion
-                   | MethodExpr
                    | PmryExpr Slice
                    | PmryExpr Selector
                    | PmryExpr TypeAssertion
@@ -352,13 +351,13 @@ def p_expr_list_type_opt(p):
                              | epsilon'''
     p[0] = p[1]
 
-def p_method_expr(p):
-    '''MethodExpr : ReceiverType DOT MethodName'''
-    p[0] = nd.two_child_node(p[1],p[3],"MethodExpr")
+# def p_method_expr(p):
+#     '''MethodExpr : ReceiverType DOT MethodName'''
+#     p[0] = nd.two_child_node(p[1],p[3],"MethodExpr")
 
-def p_receiver_type(p):
-    '''ReceiverType : Type'''
-    p[0] = p[1]
+# def p_receiver_type(p):
+#     '''ReceiverType : Type'''
+#     p[0] = p[1]
 
 def p_expr(p):
     '''Expr : UnaryExpr
@@ -565,6 +564,7 @@ def p_continue(p):
 
 def p_source_file(p):
     '''SourceFile : PkgClause SEMCLN ImportDeclRep TopLvlDeclRep'''
+    p[3] = nd.multiple_node_parent(ast_decl.ast_imports, "Imports")
     p[0] = nd.three_child_node(p[1],p[3],p[4],"SourceFile")
 
 def p_import_decl_rep(p):
@@ -572,7 +572,7 @@ def p_import_decl_rep(p):
            |  ImportDecl SEMCLN ImportDeclRep'''
   # if len(p) > 2 :
   #     # p[0] = nd.two_child_node(p[1],p[3],"ImportDecls")
-  #     p[0] = nd.multiple_node_parent(ast_decl.ast_imports, "Imports")
+  # p[0] = nd.multiple_node_parent(ast_decl.ast_imports, "Imports")
   #
   # else :
   #     p[0] = p[1]
@@ -643,7 +643,7 @@ def p_error(p):
 # Build the parser
 parser = yacc.yacc()
 
-with open("factorial.go") as f:
+with open("factorial.go", "r") as f:
     data = f.read()
 result = parser.parse(data)
 # print(result)
