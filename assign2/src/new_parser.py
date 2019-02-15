@@ -1,5 +1,6 @@
 import sys
 import os
+# import 
 import pydot
 import ply.yacc as yacc
 
@@ -304,7 +305,8 @@ def p_basic_lit(p):
                 | IMAGINARY
                 | RUNE
                 | STRING'''
-    p[0] = p[1]
+    leaf_node = nd.node(p[1])
+    p[0] = leaf_node
 
 def p_operand_name(p):
     '''OperandName : IDENT'''
@@ -317,6 +319,7 @@ def p_quali_ident(p):
 def p_prim_expr(p):
     '''PmryExpr : Operand
                    | Conversion
+                   | MethodExpr
                    | PmryExpr Slice
                    | PmryExpr Selector
                    | PmryExpr TypeAssertion
@@ -351,13 +354,13 @@ def p_expr_list_type_opt(p):
                              | epsilon'''
     p[0] = p[1]
 
-# def p_method_expr(p):
-#     '''MethodExpr : ReceiverType DOT MethodName'''
-#     p[0] = nd.two_child_node(p[1],p[3],"MethodExpr")
+def p_method_expr(p):
+    '''MethodExpr : ReceiverType DOT MethodName'''
+    p[0] = nd.two_child_node(p[1],p[3],"MethodExpr")
 
-# def p_receiver_type(p):
-#     '''ReceiverType : Type'''
-#     p[0] = p[1]
+def p_receiver_type(p):
+    '''ReceiverType : Type'''
+    p[0] = p[1]
 
 def p_expr(p):
     '''Expr : UnaryExpr
@@ -642,6 +645,7 @@ def p_error(p):
 
 # Build the parser
 parser = yacc.yacc()
+
 
 with open("factorial.go", "r") as f:
     data = f.read()
