@@ -7,8 +7,23 @@ debug = 0
 id = 0
 
 graph = pydot.Dot(graph_type='digraph')
-debug = False
+debug = True
 outputfile = "exp.ps"
+
+def multiple_node_parent(child_labels, parent_label):
+    '''childs is a lists'''
+    global id
+    id += 1
+    parent = pydot.Node(id, label=parent_label)
+    to_return  = id
+    graph.add_node(parent)
+    for i in child_labels:
+        id += 1
+        temp = pydot.Node(id, label=i)
+        graph.add_node(temp)
+        graph.add_edge(pydot.Edge(parent, temp))
+    return to_return
+
 
 def node(value_a):
     global id
@@ -23,6 +38,8 @@ def node(value_a):
     return id
 
 def one_child_node(a,value_b):
+    if a is None :
+        return
     global id
     id += 1
     a = pydot.Node(a)
@@ -37,6 +54,10 @@ def one_child_node(a,value_b):
     return id
 
 def two_child_node(a,b,value_c):
+    if a is None :
+        return one_child_node(b,value_c)
+    elif b is None :
+        return one_child_node(a,value_c)
     global id
     id += 1
     a = pydot.Node(a)
@@ -51,6 +72,12 @@ def two_child_node(a,b,value_c):
     return id
 
 def three_child_node(a,b,c,value_d):
+    if a is None :
+        return two_child_node(b,c,value_d)
+    elif b is None :
+        return two_child_node(a,c,value_d)
+    elif c is None :
+        return two_child_node(a,b,value_d)
     global id
     id += 1
     a = pydot.Node(a)
@@ -67,6 +94,14 @@ def three_child_node(a,b,c,value_d):
     return id
 
 def four_child_node(a,b,c,d,value_e):
+    if a is None :
+        return three_child_node(b,c,d,value_e)
+    elif b is None :
+        return three_child_node(a,c,d,value_e)
+    elif c is None :
+        return three_child_node(a,b,d,value_e)
+    elif d is None :
+        return three_child_node(a,b,c,value_e)
     global id
     id += 1
     a = pydot.Node(a)
@@ -84,25 +119,6 @@ def four_child_node(a,b,c,d,value_e):
     graph.add_edge(pydot.Edge(node_e,d))
     return id
 
-def five_child_node(a,b,c,d,e,value_f):
-    global id
-    id += 1
-    a = pydot.Node(a)
-    b = pydot.Node(b)
-    c = pydot.Node(c)
-    d = pydot.Node(d)
-    e = pydot.Node(e)
-    node_f = pydot.Node(id,label=value_f)
-    if debug:
-        print(id,value_f,"five_child_node")
-        print("\n")
-    graph.add_node(node_f)
-    graph.add_edge(pydot.Edge(node_f,a))
-    graph.add_edge(pydot.Edge(node_f,b))
-    graph.add_edge(pydot.Edge(node_f,c))
-    graph.add_edge(pydot.Edge(node_f,d))
-    graph.add_edge(pydot.Edge(node_f,e))
-    return id
 
 def graph_plot():
     graph.write_ps(outputfile)

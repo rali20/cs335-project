@@ -5,6 +5,7 @@ import ply.yacc as yacc
 
 import node_def as nd
 from new_lexer import *
+import ast_decl
 
 precedence = (
     ('right','AGN', 'NOT'),
@@ -475,9 +476,6 @@ def p_if_statement(p):
   ''' IfStmt : IF Expr Block  ElseOpt'''
   p[0] = nd.three_child_node(p[2], p[3], p[4], "IfStmt")
 
-# global ast_ifstmt = { 'condition': None,
-#             'block' : None, 'else' : None  }
-
 def p_else_opt(p):
   ''' ElseOpt : ELSE IfStmt
               | ELSE  Block
@@ -569,16 +567,15 @@ def p_source_file(p):
     '''SourceFile : PkgClause SEMCLN ImportDeclRep TopLvlDeclRep'''
     p[0] = nd.three_child_node(p[1],p[3],p[4],"SourceFile")
 
-global ast_imports
-ast_imports = []
-
 def p_import_decl_rep(p):
   '''ImportDeclRep : epsilon
            |  ImportDecl SEMCLN ImportDeclRep'''
-  if len(p) > 2 :
-      p[0] = nd.two_child_node(p[1],p[3],"ImportDecls")
-  else :
-      p[0] = p[1]
+  # if len(p) > 2 :
+  #     # p[0] = nd.two_child_node(p[1],p[3],"ImportDecls")
+  #     p[0] = nd.multiple_node_parent(ast_decl.ast_imports, "Imports")
+  #
+  # else :
+  #     p[0] = p[1]
 
 def p_top_level_decl_rep(p):
   '''TopLvlDeclRep : TopLvlDeclRep TopLvlDecl SEMCLN
@@ -600,23 +597,22 @@ def p_pkg_name(p):
 def p_import_decl(p):
   '''ImportDecl : IMPORT ImportSpec
                 | IMPORT LPRN ImportSpecRep RPRN '''
-  if len(p)==3:
-      p[0] = nd.two_child_node(nd.node(p[1]), p[2], "ImportDecl")
-      # ast_imports.append(p[2])
-  else:
-      p[0] = nd.two_child_node(nd.node(p[1]), p[3], "ImportDecl")
+  # if len(p)==3:
+  #     p[0] = nd.two_child_node(nd.node(p[1]), p[2], "ImportDecl")
+  # else:
+  #     p[0] = nd.two_child_node(nd.node(p[1]), p[3], "ImportDecl")
 
 def p_import_spec_rep(p):
   ''' ImportSpecRep : ImportSpecRep ImportSpec SEMCLN
                     | epsilon '''
-  if len(p) == 4:
-      p[0] = nd.two_child_node(p[1], p[2], "ImportSpecRep")
-  else:
-      p[0] = p[1]
+  # if len(p) == 4:
+  #     p[0] = nd.two_child_node(p[1], p[2], "ImportSpecRep")
+  # else:
+  #     p[0] = p[1]
 
 def p_import_spec(p):
   ''' ImportSpec : PkgNameDotOpt ImportPath '''
-  p[0] = nd.two_child_node(p[1], p[2], "ImportSpec")
+  # p[0] = nd.two_child_node(p[1], p[2], "ImportSpec")
 
 
 def p_pkg_name_dot_opt(p):
@@ -630,12 +626,14 @@ def p_pkg_name_dot_opt(p):
 
 def p_import_path(p):
   ''' ImportPath : STRING '''
-  leaf_node = nd.node(p[1])
-  p[0] = nd.one_child_node(leaf_node,"ImportPath")
+  ast_decl.ast_imports.append(p[1])
+  # leaf_node = nd.node(p[1])
+  # p[0] = nd.one_child_node(leaf_node,"ImportPath")
 
 def p_epsilon(p):
   '''epsilon : '''
-  p[0] = nd.node("NULL")
+  # p[0] = nd.node("NULL")
+  p[0] = None
 
 def p_error(p):
   print(p)
@@ -649,4 +647,5 @@ with open("factorial.go") as f:
     data = f.read()
 result = parser.parse(data)
 # print(result)
+print(ast_decl.ast_imports)
 nd.graph_plot()
