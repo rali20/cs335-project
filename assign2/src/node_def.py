@@ -7,7 +7,7 @@ debug = 0
 id = 0
 
 graph = pydot.Dot(graph_type='digraph')
-debug = True
+debug = False
 outputfile = "exp.ps"
 
 def node(value_a):

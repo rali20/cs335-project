@@ -1,4 +1,4 @@
-package fac;
+package fac
 
 // import (
 // 	"fmt";
@@ -11,7 +11,7 @@ package fac;
 // 	};
 // 	return n*fact(n-1);
 // };
-
-func main() {
-	var n int_t;
-};
+//
+func main(n int_t) int_t {
+	// var n int_t;
+}
