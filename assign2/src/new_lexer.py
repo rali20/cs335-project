@@ -69,12 +69,10 @@ for r in keywords:
 	reserved[r.lower()] = r
 
 types = {'INTEGER', 'OCTAL', 'HEX', 'FLOAT',
-            'STRING', 'IMAGINARY', 'RUNE'}
+            'STRING', 'IMAGINARY', 'RUNE', 'IDENT'}
 
-identity = {'IDENT'}
-
-tokens = list(operators) + list(types) + \
-            list(identity) + list(reserved.values())
+tokens = list(operators) \
+            + list(types) + list(reserved.values())
 
 t_ignore_COMMENT = r'(/\*([^*]|\n|(\*+([^*/]|\n])))*\*+/)|(//.*)'
 t_ignore = ' \t'

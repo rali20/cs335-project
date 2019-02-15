@@ -153,7 +153,8 @@ def p_decl(p):
 
 def p_top_level_decl(p):
   '''TopLvlDecl : Declaration
-                  | FuncDecl'''
+                  | FuncDecl
+                  | MethodDecl'''
   p[0] = p[1]
 
 def p_const_decl(p):
@@ -246,6 +247,16 @@ def p_func_name(p):
 def p_func_body(p):
     '''FuncBody : Block'''
     p[0] = p[1]
+
+def p_method_decl(p):
+    '''MethodDecl : FUNC Receiver MethodName Signature
+                  | FUNC Receiver MethodName Signature FuncBody'''
+
+def p_receiver(p):
+    '''Receiver : Parameters'''
+
+def p_method_name(p):
+    '''MethodName : IDENT'''
 
 def p_operand(p):
     '''Operand : Literal
