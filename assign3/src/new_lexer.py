@@ -49,7 +49,7 @@ operators = {
     'LEQ',      # <=
     'GEQ',      # >=
     'DEFN',   # :=
-    # 'ELPS', # ...
+    'ELPS', # ...
 
     'LPRN',  # (
     'LSQR',  # [

@@ -1,11 +1,8 @@
 import sys
 import os
-import pydot
 import ply.yacc as yacc
 
-import node_def as nd
 from new_lexer import *
-import ast_decl
 
 precedence = (
     ('right', 'AGN', 'NOT'),
@@ -21,719 +18,462 @@ precedence = (
     ('left', 'MUL', 'QUO', 'REM')
 )
 
+def p_source_file(p):
+    '''SourceFile    : PackageClause Imports DeclList'''
 
-def p_start(p):
-    '''start : SourceFile'''
-    p[0] = p[1]
+def p_package_clause(p):
+    '''PackageClause : PACKAGE IDENT SEMCLN'''
 
+def p_imports(p):
+    '''Imports    : empty
+                | Imports Import SEMCLN'''
 
-def p_type(p):
-    '''Type : TypeName
-            | TypeLit
-            | LPRN Type RPRN'''
-    if len(p) == 2:
-        p[0] = p[1]
-    else:
-        p[0] = p[2]
+def p_import(p):
+    '''Import     : IMPORT ImportStmt
+               | IMPORT LPRN ImportStmtList OSemi RPRN
+               | IMPORT LPRN RPRN'''
 
+def p_import_stmt(p):
+    '''ImportStmt : ImportHere string_literal'''
 
-def p_type_name(p):
-    '''TypeName : TypeToken
-                | QualifiedIdent'''
-    p[0] = p[1]
+def p_import_stmt_list(p):
+    '''ImportStmtList : ImportStmt
+               | ImportStmtList SEMCLN ImportStmt'''
 
-
-def p_type_token(p):
-    '''TypeToken : INT_T
-                 | FLOAT_T
-                 | UINT_T
-                 | COMPLEX_T
-                 | RUNE_T
-                 | BOOL_T
-                 | STRING_T
-                 | TYPE IDENT'''
-    if len(p) > 2:
-        leaf_node = nd.node(p[2])
-        p[0] = nd.one_child_node(leaf_node, "Type")
-    else:
-        leaf_node = nd.node(p[1])
-        p[0] = nd.one_child_node(leaf_node, "BuiltinType")
-
-
-def p_type_lit(p):
-    '''TypeLit : ArrayType
-               | StructType
-               | PtrType'''
-    if len(p) == 2:
-        p[0] = p[1]
-
-
-def p_array_type(p):
-    '''ArrayType : LSQR ArrayLength RSQR ElementType'''
-    p[0] = nd.two_child_node(p[2], p[4], "ArrayType")
-
-
-def p_array_length(p):
-    ''' ArrayLength : Expr '''
-    p[0] = p[1]
-
-
-def p_element_type(p):
-    ''' ElementType : Type '''
-    p[0] = p[1]
-
-
-def p_struct_type(p):
-    '''StructType : STRUCT LCURL FieldDeclRep RCURL '''
-    p[0] = nd.one_child_node(p[3], "StructType")
-
-
-def p_field_decl_rep(p):
-    ''' FieldDeclRep : FieldDecl SEMCLN FieldDeclRep
-                    | epsilon '''
-    if len(p) > 2:
-        p[0] = nd.two_child_node(p[1], p[3], "FieldDecls")
-
-
-def p_field_decl(p):
-    ''' FieldDecl : IdentList Type'''
-    p[0] = nd.two_child_node(p[1], p[2], "FieldDecl")
-
-
-def p_point_type(p):
-    '''PtrType : MUL BaseType'''
-    p[0] = nd.one_child_node(p[2], "PointerTo")
-
-
-def p_base_type(p):
-    '''BaseType : Type'''
-    p[0] = p[1]
-
-
-def p_sign(p):
-    '''Signature : Parameters
-                 | Parameters Type'''
-    if len(p) > 2:
-        p[0] = nd.two_child_node(p[1], p[2], "Signature")
-    else:
-        p[0] = nd.one_child_node(p[1], "Signature")
-
-
-def p_params(p):
-    '''Parameters : LPRN RPRN
-                  | LPRN ParamList RPRN'''
-    if len(p) > 3:
-        p[0] = nd.one_child_node(p[2], "Parameters")
-    else:
-        p[0] = nd.node("NULL")
-
-
-def p_param_list(p):
-    '''ParamList : ParamDecl
-                      | ParamDeclCommaRep'''
-    p[0] = p[1]
-
-
-def p_param_decl_comma_rep(p):
-    '''ParamDeclCommaRep : COMMA ParamDecl ParamDeclCommaRep
-                             | ParamDecl COMMA ParamDecl'''
-    if p[1] == ',':
-        p[0] = nd.two_child_node(p[2], p[3], "ParameterList")
-    else:
-        p[0] = nd.two_child_node(p[1], p[3], "ParameterList")
-
-
-def p_param_decl(p):
-    '''ParamDecl : IdentList Type
-                     | Type'''
-    if len(p) == 2:
-        p[0] = p[1]
-    else:
-        p[0] = nd.two_child_node(p[1], p[2], "ParameterDecl")
-
-
-def p_block(p):
-    '''Block : LCURL StmtList RCURL'''
-    p[0] = p[2]
-
-
-def p_stat_rep(p):
-    '''StmtList : Statement SEMCLN StmtList
-                     | epsilon'''
-    if len(p) > 2:
-        p[0] = nd.two_child_node(p[1], p[3], "Statements")
-    else:
-        p[0] = p[1]
-
+def p_import_here(p):
+    '''ImportHere : empty
+           | IDENT
+           | DOT'''
 
 def p_decl(p):
-    '''Declaration : ConstDecl
-                   | TypeDecl
-                   | VarDecl'''
-    p[0] = p[1]
+    '''Declaration : CommonDecl
+                | FuncDecl
+                | NonDeclStmt'''
 
+def p_common_decl(p):
+    '''CommonDecl : CONST ConstDecl
+                | CONST LPRN ConstDecl OSemi RPRN
+                | CONST LPRN ConstDecl SEMCLN ConstDeclList OSemi RPRN
+                | CONST LPRN RPRN
+                | VAR VarDecl
+                | VAR LPRN VarDeclList OSemi RPRN
+                | VAR LPRN RPRN
+                | TYPE TypeDecl
+                | TYPE LPRN TypeDeclList OSemi RPRN
+                | TYPE LPRN RPRN'''
 
-def p_top_level_decl(p):
-    '''TopLvlDecl : Declaration
-                    | FuncDecl
-                    | MethodDecl'''
-    p[0] = p[1]
-
+def p_var_decl(p):
+    '''VarDecl   : DeclNameList NType
+                | DeclNameList NType AGN ExprList
+                | DeclNameList AGN ExprList'''
 
 def p_const_decl(p):
-    '''ConstDecl : CONST ConstSpec
-                 | CONST LPRN ConstSpecRep RPRN'''
-    if len(p) > 3:
-        p[0] = p[3]
-    else:
-        p[0] = p[1]
+    '''ConstDecl : DeclNameList NType AGN ExprList
+                | DeclNameList AGN ExprList'''
 
+def p_const_decl_1(p):
+    '''ConstDecl1 : ConstDecl
+                | DeclNameList NType
+                | DeclNameList'''
 
-def p_const_spec_rep(p):
-    '''ConstSpecRep : ConstSpec SEMCLN ConstSpecRep
-                    | epsilon'''
-    if len(p) > 2:
-        p[0] = nd.two_child_node(p[1], p[3], "ConstSpecs")
-    else:
-        p[0] = p[1]
+def p_type_decl_name(p):
+    '''TypeDeclName : IDENT'''
 
+def p_type_decl(p):
+    '''TypeDecl : TypeDeclName NType'''
 
-def p_const_spec(p):
-    '''ConstSpec : IdentList Type AGN ExprList'''
-    p[0] = nd.three_child_node(p[1], p[2], p[4], "ConstSpec")
+dec p_inc_dec_op(p):
+    '''Inc_dec_op : INC
+                | DEC'''
 
+def p_simple_stmt(p):
+    '''SimpleStmt : Expr
+                | Expr mod_assign_op Expr
+                | ExprList AGN ExprList
+                | ExprList DEFN ExprList
+                | Expr Inc_dec_op'''
 
-def p_ident_list(p):
-    '''IdentList : IDENT IdentRep'''
-    leaf_node = nd.node(p[1])
-    p[0] = nd.two_child_node(leaf_node, p[2], "IdentifierList")
+def p_case(p):
+    '''Case : CASE ExprOrTypeList COLON
+            | CASE ExprOrTypeList AGN Expr COLON
+            | CASE ExprOrTypeList DEFN Expr COLON
+            | DEFAULT COLON'''
 
+def p_compound_stmt(p):
+    '''CompoundStmt : LCURL StmtList RCURL'''
 
-def p_ident_rep(p):
-    '''IdentRep : COMMA IDENT IdentRep
-                     | epsilon'''
-    if len(p) > 2:
-        p[0] = nd.two_child_node(p[2], p[3], "IdentifierList")
-    else:
-        p[0] = p[1]
+def p_case_block(p):
+    '''CaseBlock : Case StmtList'''
 
+def p_case_block_list(p):
+    '''CaseBlockList : empty
+                    | CaseBlockList CaseBlock'''
+
+def p_loop_body(p):
+    '''LoopBody : LCURL StmtList RCURL'''
+
+def p_range_stmt(p):
+    '''RangeStmt : ExprList AGN RANGE Expr
+          | ExprList DEFN RANGE Expr
+          | RANGE Expr'''
+
+def p_for_header(p):
+    '''ForHeader : OSimpleStmt SEMCLN OSimpleStmt SEMCLN OSimpleStmt
+          | OSimpleStmt
+          | RangeStmt'''
+
+def p_for_body(p):
+    '''ForBody : ForHeader LoopBody'''
+
+def p_for_stmt(p):
+    '''ForStmt : FOR ForBody'''
+
+def p_if_header(p):
+    '''IfHeader : OSimpleStmt
+         | OSimpleStmt SEMCLN OSimpleStmt'''
+
+def p_if_stmt(p):
+    '''IfStmt : IF IfHeader LoopBody ElseIfList Else'''
+
+def p_else_if(p):
+    '''ElseIf : ELSE IF IfHeader LoopBody'''
+
+def p_else_if_list(p):
+    '''ElseIfList : empty
+           | ElseIfList ElseIf'''
+
+def p_else(p):
+    '''Else : empty
+     | ELSE CompoundStmt'''
+
+def p_ntype(p):
+    '''NType : FuncType
+      |	OtherType
+      |	PtrType
+      |	DotName
+      |	LPRN NType RPRN'''
+
+def p_non_expr_type(p):
+'''NonExprType : FuncType
+            | OtherType
+            | MUL NonExprType'''
+
+def p_other_type(p):
+    '''OtherType : LSQR OExpr LSQR NType
+          | MAP LSQR NType LSQR NType
+          | StructType
+          | InterfaceType'''
+
+def p_struct_type(p):
+    '''StructType : STRUCT LCURL StructDeclList OSemi RCURL
+           | STRUCT LCURL RCURL'''
+
+def p_interface_type(p):
+    '''InterfaceType : INTERFACE LCURL InterfaceDeclList OSemi RCURL
+              | INTERFACE LCURL RCURL'''
+
+def p_func_decl(p):
+    '''FuncDecl : FUNC FuncDecl_ FuncBody'''
+
+def p_func_Decl_(p):
+    '''FuncDecl_ : IDENT ArgList FuncRes
+                | left_tuple OArgTypeListOComma right_tuple IDENT ArgList FuncRes'''
+
+def p_func_type(p):
+    '''FuncType : FUNC ArgList FuncRes'''
+
+def p_arg_list(p):
+    '''ArgList : LPRN OArgTypeListOComma RPRN
+                | ArgList LPRN OArgTypeListOComma RPRN'''
+
+def p_func_body(p):
+    '''FuncBody : empty
+                | LCURL StmtList RCURL'''
+
+def p_func_res(p):
+    '''FuncRes : empty
+                | FuncRetType
+                | left_tuple OArgTypeListOComma right_tuple'''
+
+def p_struct_decl_list(p):
+    '''StructDeclList : StructDecl
+                    | StructDeclList SEMCLN StructDecl'''
+
+def p_interface_decl_list(p):
+    '''InterfaceDeclList : InterfaceDecl
+                        | InterfaceDeclList SEMCLN InterfaceDecl'''
+
+def p_struct_decl(p):
+    '''StructDecl : NewNameList NType OLiteral
+                    | Embed OLiteral
+                    | LPRN Embed RPRN OLiteral
+                    | MUL Embed OLiteral
+                    | LPRN MUL Embed RPRN OLiteral
+                    | MUL LPRN Embed RPRN OLiteral'''
+
+def p_interface_decl(p):
+    '''InterfaceDecl : NewName InDecl
+                    | IDENT
+                    | LPRN IDENT RPRN'''
+
+def p_indecl(p):
+    '''InDecl : LPRN OArgTypeListOComma RPRN FuncRes'''
+
+def p_label_name(p):
+    '''LabelName : NewName'''
+
+def p_new_name(p):
+    '''NewName : IDENT'''
+
+def p_ptr_type(p):
+    '''PtrType : MUL NType'''
+
+def p_func_ret_type(p):
+    '''FuncRetType : FuncType
+                    | OtherType
+                    | PtrType
+                    | DotName'''
+
+def p_dot_name(p):
+    '''DotName : Name
+                | Name DOT IDENT'''
+
+def p_ocomma(p):
+    '''OComma : empty
+                | COMMA'''
+
+def p_osemi(p):
+    '''OSemi : empty
+            | SEMCLN'''
+
+def p_osimple_stmt(p):
+    '''OSimpleStmt : empty
+                | SimpleStmt'''
+
+def p_onew_name(p):
+    '''ONewName : empty
+                | NewName'''
+
+def p_oexpr(p):
+    '''OExpr : empty
+            | Expr'''
+
+def p_oexpr_list(p):
+    '''OExprList : empty
+                | ExprList'''
+
+def p_func_literal_decl(p):
+    '''FuncLiteralDecl : FuncType'''
+
+def p_func_literal(p):
+    '''FuncLiteral : FuncLiteralDecl LCURL StmtList RCURL'''
 
 def p_expr_list(p):
     '''ExprList : Expr
-                      | Expr COMMA ExprList'''
-    if len(p) > 2:
-        p[0] = nd.two_child_node(p[1], p[2], "ExprList")
-    else:
-        p[0] = p[1]
+         | ExprList COMMA Expr'''
 
+def p_expr_or_type_list(p):
+    '''ExprOrTypeList : ExprOrType
+               | ExprOrTypeList COMMA ExprOrType'''
 
-def p_type_decl(p):
-    '''TypeDecl : TYPE TypeSpec
-                | TYPE LPRN TypeSpecRep RPRN'''
-    if len(p) < 4:
-        p[0] = p[2]
-    else:
-        p[0] = p[3]
-
-
-def p_type_spec_rep(p):
-    '''TypeSpecRep : TypeSpec SEMCLN TypeSpecRep
-                   | epsilon'''
-    if len(p) > 2:
-        p[0] = nd.two_child_node(p[1], p[3], "TypeSpecs")
-
-
-def p_type_spec(p):
-    '''TypeSpec : TypeDef'''
-    p[0] = p[1]
-
-
-def p_type_def(p):
-    '''TypeDef : IDENT Type'''
-    leaf_node = nd.node(p[1])
-    p[0] = nd.two_child_node(leaf_node, p[2], "Typedef")
-
-
-def p_var_decl(p):
-    '''VarDecl : VAR VarSpec
-               | VAR LPRN VarSpecRep RPRN'''
-    if len(p) < 4:
-        p[0] = p[2]
-    else:
-        p[0] = p[3]
-
-
-def p_var_spec_rep(p):
-    '''VarSpecRep : VarSpec SEMCLN VarSpecRep
-                  | epsilon'''
-    if len(p) > 2:
-        p[0] = nd.two_child_node(p[1], p[3], "VarSpecs")
-
-
-def p_var_spec(p):
-    '''VarSpec : IdentList Type AGN ExprList
-               | IdentList AGN ExprList
-               | IdentList Type'''
-    if len(p) == 5:
-        p[0] = nd.three_child_node(p[1], p[2], p[3], "VarSpecs")
-    elif len(p) == 4:
-        p[0] = nd.two_child_node(p[1], p[3], "VarSpecInfer")
-    else:
-        p[0] = nd.two_child_node(p[1], p[2], "VarSpec")
-
-
-def p_short_var_decl(p):
-    ''' ShortVarDecl : IDENT DEFN Expr '''
-    p[0] = p[0] = nd.two_child_node(p[1], p[3], "ShortVarDecl")
-
-
-def p_func_decl(p):
-    '''FuncDecl : FUNC FuncName  Signature  FuncBody
-                    | FUNC FuncName  Signature '''
-    if len(p) == 5:
-        p[0] = nd.three_child_node(p[2], p[3], p[4], "Function")
-    else:
-        p[0] = nd.two_child_node(p[2], p[3], "FuncDecl")
-
-
-def p_func_name(p):
-    '''FuncName : IDENT'''
-    p[0] = nd.node(p[1])
-
-
-def p_func_body(p):
-    '''FuncBody : Block'''
-    p[0] = p[1]
-
-
-def p_method_decl(p):
-    '''MethodDecl : FUNC Receiver MethodName Signature
-                  | FUNC Receiver MethodName Signature FuncBody'''
-    if len(p) == 5:
-        p[0] = nd.three_child_node(p[2], p[3], p[4], "MethodDecl")
-    else:
-        p[0] = nd.four_child_node(p[2], p[3], p[4], p[5], "MethodDecl")
-
-
-def p_receiver(p):
-    '''Receiver : Parameters'''
-    p[0] = p[1]
-
-
-def p_method_name(p):
-    '''MethodName : IDENT'''
-    p[0] = p[1]
-
-
-def p_operand(p):
-    '''Operand : Literal
-               | OperandName
-               | LPRN Expr RPRN'''
-    if len(p) > 2:
-        p[0] = p[2]
-    else:
-        p[0] = p[1]
-
+def p_oliteral(p):
+    '''OLiteral : empty
+         | Literal'''
 
 def p_literal(p):
-    '''Literal : BasicLit'''
-    p[0] = p[1]
+    '''Literal : int_lit
+        | float_lit
+        | rune_lit
+        | string_literal'''
+
+def p_embed(p):
+    '''Embed : IDENT'''
+
+def p_decl_list(p):
+    '''DeclList : empty
+         | DeclList Declaration SEMCLN'''
+
+def p_var_decl_list(p):
+    '''VarDeclList : VarDecl
+            | VarDeclList SEMCLN VarDecl'''
+
+def p_const_decl_list(p):
+    '''ConstDeclList : ConstDecl1
+              | ConstDeclList SEMCLN ConstDecl1'''
+
+def p_type_decl_list(p):
+    '''TypeDeclList : TypeDecl
+             | TypeDeclList SEMCLN TypeDecl'''
+
+def p_decl_name_list(p):
+    '''DeclNameList : DeclName
+             | DeclNameList COMMA DeclName'''
+
+def p_stmt_list(p):
+    '''StmtList : Stmt
+         | StmtList SEMCLN Stmt'''
+
+def p_new_name_list(p):
+    '''NewNameList : NewName
+            | NewNameList COMMA NewName'''
+
+def p_keyval_list(p):
+    '''KeyvalList : Keyval
+           | BareCompLitExpr
+           | KeyvalList COMMA Keyval
+           | KeyvalList COMMA BareCompLitExpr'''
+
+def p_braced_keyval_list(p):
+    '''BracedKeyvalList : empty
+                 | KeyvalList OComma'''
+
+def p_decl_name(p):
+    '''DeclName : IDENT'''
+
+def p_name(p):
+    '''Name : IDENT'''
+
+def p_arg_type(p):
+    '''ArgType : NameOrType
+        | IDENT NameOrType
+        | IDENT DotDotDot
+        | DotDotDot'''
+
+def p_arg_type_list(p):
+    '''ArgTypeList : ArgType
+            | ArgTypeList COMMA ArgType'''
 
 
-def p_basic_lit(p):
-    '''BasicLit : INTEGER
-                | OCTAL
-                | HEX
-                | FLOAT
-                | IMAGINARY
-                | RUNE
-                | STRING'''
-    p[0] = p[1]
+def p_oarg_type_list_ocomma(p):
+    '''OArgTypeListOComma : empty
+                   | ArgTypeList OComma'''
 
+def p_stmt(p):
+    '''Stmt : empty
+            | CompoundStmt
+            | CommonDecl
+            | NonDeclStmt'''
 
-def p_operand_name(p):
-    '''OperandName : IDENT'''
-    p[0] = p[1]
+def p_non_decl_stmt(p):
+    '''NonDeclStmt : SimpleStmt
+                | ForStmt
+                | SwitchStmt
+                | IfStmt
+                | LabelName COLON Stmt
+                | FALLTHROUGH
+                | BREAK ONewName
+                | CONTINUE ONewName
+                | DEFER PseudoCall
+                | GOTO NewName
+                | RETURN OExprList'''
 
+def p_dot_dot_dot(p):
+    '''DotDotDot : ELPS
+                | ELPS NType'''
 
-def p_quali_ident(p):
-    '''QualifiedIdent : IDENT DOT TypeName'''
-    p[0] = nd.two_child_node(p[1],  p[3], "QualifiedIdent")
+def p_pexpr(p):
+    '''PExpr : PExprNoParen
+            | LPRN ExprOrType RPRN'''
 
+def p_pexp_no_paren(p):
+    '''PExprNoParen : Literal
+                    | Name
+                    | PExpr DOT IDENT
+                    | PExpr DOT LPRN ExprOrType RPRN
+                    | PExpr DOT LPRN TYPE RPRN
+                    | PExpr LSQR Expr LSQR
+                    | PExpr LSQR OExpr COLON OExpr LSQR
+                    | PExpr LSQR OExpr COLON OExpr COLON OExpr LSQR
+                    | PseudoCall
+                    | ConvType SHL Expr OComma SHR
+                    | CompType left_banana BracedKeyvalList right_banana
+                    | PExpr left_banana BracedKeyvalList right_banana
+                    | FuncLiteral
+                    | ForCompExpr'''
 
-def p_prim_expr(p):
-    '''PrimaryExpr : Operand
-                   | Conversion
-                   | PrimaryExpr Slice
-                   | PrimaryExpr Selector
-                   | PrimaryExpr TypeAssertion
-                   | PrimaryExpr LSQR Expr RSQR
-                   | PrimaryExpr LPRN ExprListTypeOpt RPRN'''
-    if len(p) == 2:
-        p[0] = p[1]
-    elif len(p) == 3:
-        p[0] = nd.two_child_node(p[1], p[2], "PrimaryExpr")
-    elif len(p) == 5:
-        p[0] = nd.two_child_node(p[1], p[3], "PrimaryExpr")
+def p_conv_type(p):
+    '''ConvType : FuncType
+                | OtherType'''
 
+def p_comp_type(p):
+    '''CompType : OtherType'''
 
-def p_selector(p):
-    '''Selector : DOT IDENT'''
-    leaf_node = nd.node(p[2])
-    p[0] = nd.one_child_node(leaf_node, "Selector")
+def p_start_comp_lit(p):
+    '''StartCompLit : empty'''
 
+def p_key_val(p):
+    '''Keyval : Expr COLON CompLitExpr'''
 
-def p_slice(p):
-    '''Slice : LSQR ExprOpt COLON ExprOpt RSQR
-             | LSQR ExprOpt COLON Expr COLON Expr RSQR'''
-    if len(p) == 6:
-        p[0] = nd.two_child_node(p[2], p[4], "Slice")
-    else:
-        p[0] = nd.three_child_node(p[2], p[4], p[6], "Slice")
+def p_bare_comp_lit_exp(p):
+    '''BareCompLitExpr : Expr
+                | left_banana BracedKeyvalList right_banana'''
 
+def p_comp_lit_exp(p):
+    '''CompLitExpr : Expr
+            | left_banana BracedKeyvalList right_banana'''
 
-def p_type_assert(p):
-    '''TypeAssertion : DOT LPRN Type RPRN'''
-    p[0] = p[3]
+def p_exp_or_type(p):
+    '''ExprOrType : Expr
+           | NonExprType'''
 
+def p_name_or_type(p):
+    '''NameOrType : NType'''
 
-def p_expr_list_type_opt(p):
-    '''ExprListTypeOpt : ExprList
-                             | epsilon'''
-    p[0] = p[1]
+def p_switch_stmt(p):
+    '''SwitchStmt : SWITCH IfHeader LCURL CaseBlockList RCURL'''
 
-# def p_method_expr(p):
-#     '''MethodExpr : ReceiverType DOT MethodName'''
-#     p[0] = nd.two_child_node(p[1],p[3],"MethodExpr")
+def p_mul_op(p):
+    '''Mul_op : QUO
+            | REM
+            | SHL
+            | SHR
+            | AND
+            | AND_XOR'''
 
-# def p_receiver_type(p):
-#     '''ReceiverType : Type'''
-#     p[0] = p[1]
+def p_prec5expr_(p):
+    '''Prec5Expr_ : UExpr
+           | Prec5Expr_ Mul_op UExpr
+           | Prec5Expr_ MUL UExpr'''
 
+def p_prec4expr_(p):
+    '''Prec4Expr_ : Prec5Expr_
+           | Prec4Expr_ ADD Prec5Expr_
+           | Prec4Expr_ SUB Prec5Expr_
+           | Prec4Expr_ XOR Prec5Expr_
+           | Prec4Expr_ OR Prec5Expr_'''
+
+def p_rel_rop(p):
+    '''Rel_op : EQL
+                | NEQ
+                | LEQ
+                | GEQ
+                | GTR
+                | LSS'''
+
+def p_prec3expr_(p):
+    '''Prec3Expr_ : Prec4Expr_
+           | Prec3Expr_ Rel_op Prec4Expr_'''
+
+def p_prec2expr_(p):
+    '''Prec2Expr_ : Prec3Expr_
+           | Prec2Expr_ LAND Prec3Expr_'''
 
 def p_expr(p):
-    '''Expr : UnaryExpr
-                  | Expr LOR Expr
-                  | Expr LAND Expr
-                  | Expr NEQ Expr
-                  | Expr EQL Expr
-                  | Expr LSS Expr
-                  | Expr GTR Expr
-                  | Expr LEQ Expr
-                  | Expr GEQ Expr
-                  | Expr OR Expr
-                  | Expr XOR Expr
-                  | Expr QUO Expr
-                  | Expr REM Expr
-                  | Expr SHL Expr
-                  | Expr SHR Expr
-                  | Expr ADD Expr
-                  | Expr SUB Expr
-                  | Expr MUL Expr
-                  | Expr AND Expr'''
-    if len(p) != 2:
-        p[0] = nd.two_child_node(p[1], p[3], p[2])
-    else:
-        p[0] = p[1]
-
-
-def p_expr_opt(p):
-    '''ExprOpt : Expr
-                     | epsilon'''
-    p[0] = p[1]
-
-
-def p_unary_expr(p):
-    '''UnaryExpr : PrimaryExpr
-                 | UnaryOp UnaryExpr
-                 | NOT UnaryExpr'''
-    if len(p) == 2:
-        p[0] = p[1]
-    else:
-        p[0] = nd.two_child_node(p[1], p[2], "UnaryExpr")
-
-
-def p_unary_op(p):
-    '''UnaryOp : ADD
-               | SUB
-               | MUL
-               | AND '''
-    p[0] = p[1]
-
-
-def p_conversion(p):
-    '''Conversion : TYPECAST Type LPRN Expr RPRN'''
-    p[0] = nd.two_child_node(p[2], p[4], "Conversion")
-
-
-def p_statement(p):
-    '''Statement : Declaration
-                 | LabeledStmt
-                 | SimpleStmt
-                 | ReturnStmt
-                 | BreakStmt
-                 | ContinueStmt
-                 | GotoStmt
-                 | Block
-                 | IfStmt
-                 | SwitchStmt
-                 | ForStmt'''
-    p[0] = p[1]
-
-
-def p_simple_stmt(p):
-    ''' SimpleStmt : epsilon
-                   | ExprStmt
-                   | IncDecStmt
-                   | Assignment
-                   | ShortVarDecl '''
-    p[0] = p[1]
-
-
-def p_labeled_statements(p):
-    ''' LabeledStmt : Label COLON Statement '''
-    p[0] = nd.two_child_node(p[1], p[3], "LabeledStmt")
-
-
-def p_label(p):
-    ''' Label : IDENT '''
-    p[0] = p[1]
-
-
-def p_expression_stmt(p):
-    ''' ExprStmt : Expr '''
-    p[0] = p[1]
-
-
-def p_inc_dec(p):
-    ''' IncDecStmt : Expr INC
-                   | Expr DEC '''
-    p[0] = nd.two_child_node(p[1], p[2], "IncDecStmt")
-
-
-def p_goto(p):
-    '''GotoStmt : GOTO Label '''
-    p[0] = nd.one_child_node(p[2], "GoToStmt")
-
-
-def p_assignment(p):
-    ''' Assignment : ExprList AssignOp ExprList'''
-    p[0] = three_child_node(p[1], p[3], p[2])
-
-
-def p_assign_op(p):
-    ''' AssignOp : ADD_AGN
-                 | SUB_AGN
-                 | MUL_AGN
-                 | QUO_AGN
-                 | REM_AGN
-                 | AND_AGN
-                 | OR_AGN
-                 | XOR_AGN
-                 | SHL_AGN
-                 | SHR_AGN
-                 | AGN '''
-    p[0] = p[1]
-
-
-def p_if_statement(p):
-    ''' IfStmt : IF Expr Block  ElseOpt'''
-    p[0] = nd.three_child_node(p[2], p[3], p[4], "IfStmt")
-
-
-def p_else_opt(p):
-    ''' ElseOpt : ELSE IfStmt
-                | ELSE  Block
-                | epsilon '''
-    if len(p) == 2:
-        p[0] = p[1]
-    else:
-        p[0] = p[2]
-
-
-def p_switch_statement(p):
-    ''' SwitchStmt : ExprSwitchStmt '''
-    p[0] = p[1]
-
-
-def p_expr_switch_stmt(p):
-    ''' ExprSwitchStmt : SWITCH Expr  LCURL ExprCaseClauseRep RCURL  '''
-    p[0] = nd.two_child_node(p[2], p[4], "ExprSwitchStmt")
-
-
-def p_expr_case_clause_rep(p):
-    ''' ExprCaseClauseRep : ExprCaseClauseRep ExprCaseClause
-                          | epsilon'''
-    if len(p) == 1:
-        p[0] = p[1]
-    else:
-        p[0] = nd.two_child_node(p[1], p[2], "CaseClause")
-
-
-def p_expr_case_clause(p):
-    ''' ExprCaseClause : ExprSwitchCase COLON StmtList '''
-    p[0] = nd.two_child_node(p[1], p[3], "ExprCaseClause")
-
-
-def p_expr_switch_case(p):
-    ''' ExprSwitchCase : CASE Expr
-                       | DEFAULT '''
-    if len(p) == 3:
-        p[0] = nd.one_child_node(p[2], "Case")
-    else:
-        p[0] = nd.node("Default")
-
-
-def p_for(p):
-    '''ForStmt : FOR  CondBlk Block
-               | FOR Block'''
-    if len(p) > 3:
-        p[0] = nd.two_child_node(p[2], p[3], "ForStmt")
-    else:
-        p[0] = nd.one_child_node(p[2], "InfLoop")
-
-
-def p_cond_blk_opt(p):
-    '''CondBlk : Condition
-               | ForClause'''
-    p[0] = p[1]
-
-
-def p_condition(p):
-    '''Condition : Expr '''
-    p[0] = p[1]
-
-
-def p_forclause(p):
-    '''ForClause : SimpleStmt SEMCLN SEMCLN SimpleStmt
-                 | SimpleStmt SEMCLN Condition SEMCLN SimpleStmt'''
-    if len(p) > 5:
-        p[0] = nd.three_child_node(p[1], p[3], p[5], "ForClause")
-    else:
-        p[0] = nd.two_child_node(p[1], p[4], "InfLoopFor")
-
-
-def p_return(p):
-    '''ReturnStmt : RETURN
-                  | RETURN Expr'''
-    if len(p) > 2:
-        p[0] = nd.one_child_node(p[2], p[1])
-    else:
-        p[0] = nd.node(p[1])
-
-
-def p_break(p):
-    '''BreakStmt : BREAK
-                 | BREAK Label'''
-    if len(p) > 2:
-        p[0] = nd.one_child_node(p[2], p[1])
-    else:
-        p[0] = nd.node(p[1])
-
-
-def p_continue(p):
-    '''ContinueStmt : CONTINUE
-                    | CONTINUE Label'''
-    if len(p) > 2:
-        p[0] = nd.one_child_node(p[2], p[1])
-    else:
-        p[0] = nd.node(p[1])
-
-
-def p_source_file(p):
-    '''SourceFile : PkgClause SEMCLN ImportDeclRep TopLvlDeclRep'''
-    p[3] = nd.multiple_node_parent(ast_decl.ast_imports, "Imports")
-    p[0] = nd.three_child_node(p[1], p[3], p[4], "SourceFile")
-
-
-def p_import_decl_rep(p):
-    '''ImportDeclRep : epsilon
-             |  ImportDecl SEMCLN ImportDeclRep'''
-    # if len(p) > 2 :
-    #     # p[0] = nd.two_child_node(p[1],p[3],"ImportDecls")
-    # p[0] = nd.multiple_node_parent(ast_decl.ast_imports, "Imports")
-    #
-    # else :
-    #     p[0] = p[1]
-
-
-def p_top_level_decl_rep(p):
-    '''TopLvlDeclRep : TopLvlDeclRep TopLvlDecl SEMCLN
-                       | epsilon'''
-    if len(p) > 2:
-        p[0] = nd.two_child_node(p[1], p[2], "TopLvlDecls")
-    else:
-        p[0] = p[1]
-
-
-def p_pkg_clause(p):
-    '''PkgClause : PACKAGE PkgName'''
-    p[0] = p[2]
-
-
-def p_pkg_name(p):
-    '''PkgName : IDENT'''
-    leaf_node = nd.node(p[1])
-    p[0] = nd.one_child_node(leaf_node, "PackageName")
-
-
-def p_import_decl(p):
-    '''ImportDecl : IMPORT ImportSpec
-                  | IMPORT LPRN ImportSpecRep RPRN '''
-    # if len(p)==3:
-    #     p[0] = nd.two_child_node(nd.node(p[1]), p[2], "ImportDecl")
-    # else:
-    #     p[0] = nd.two_child_node(nd.node(p[1]), p[3], "ImportDecl")
-
-
-def p_import_spec_rep(p):
-    ''' ImportSpecRep : ImportSpecRep ImportSpec SEMCLN
-                      | epsilon '''
-    # if len(p) == 4:
-    #     p[0] = nd.two_child_node(p[1], p[2], "ImportSpecRep")
-    # else:
-    #     p[0] = p[1]
-
-
-def p_import_spec(p):
-    ''' ImportSpec : PkgNameDotOpt ImportPath '''
-    # p[0] = nd.two_child_node(p[1], p[2], "ImportSpec")
-
-
-def p_pkg_name_dot_opt(p):
-    ''' PkgNameDotOpt : DOT
-                          | PkgName
-                          | epsilon'''
-    if(p[1] == "."):
-        p[0] = nd.node(".")
-    else:
-        p[0] = p[1]
-
-
-def p_import_path(p):
-    ''' ImportPath : STRING '''
-    ast_decl.ast_imports.append(p[1])
-    # leaf_node = nd.node(p[1])
-    # p[0] = nd.one_child_node(leaf_node,"ImportPath")
-
-
-def p_epsilon(p):
-    '''epsilon : '''
-    # p[0] = nd.node("NULL")
-    p[0] = None
-
-
-def p_error(p):
-    print(p)
-    raise SyntaxError("Syntax error in the code!")
-
-
-# Build the parser
-parser = yacc.yacc()
-
-with open("factorial.go", "r") as f:
-    data = f.read()
-result = parser.parse(data)
-# print(result)
-print(ast_decl.ast_imports)
-nd.graph_plot()
+    '''Expr       : Prec2Expr_
+           | Expr LOR Prec2Expr_'''
+
+def p_uexpr(p):
+    '''UExpr : PExpr
+      | NAND UExpr
+      | MUL UExpr
+      | ADD UExpr
+      | SUB UExpr
+      | XOR UExpr'''
+
+def p_for_comp_expr(p):
+    '''ForCompExpr : LSQR Expr pipe RangeStmt LSQR'''
+
+def p_pseudocall(p):
+    '''PseudoCall : PExpr LPRN RPRN
+           | PExpr LPRN ExprOrTypeList OComma RPRN
+           | PExpr LPRN ExprOrTypeList ELPS OComma RPRN'''
