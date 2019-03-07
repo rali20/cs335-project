@@ -2,12 +2,11 @@ import sys
 import ply.lex as lex
 
 keywords = {
-    'BREAK', 'CASE', 'CONST', 'CONTINUE', 'DEFAULT', 'DEFER',
-    'ELSE', 'FALLTHROUGH', 'FOR', 'FUNC', 'GOTO', 'IF', 'IMPORT',
-    'INTERFACE', 'MAP', 'PACKAGE', 'RANGE', 'RETURN', 'STRUCT', 'SWITCH',
-    'TYPE', 'VAR',
-    'INT_T', 'FLOAT_T', 'UINT_T', 'COMPLEX_T',
-    'RUNE_T', 'BOOL_T', 'STRING_T', 'TYPECAST'}
+    'BREAK', 'CASE', 'CONST', 'CONTINUE', 'DEFAULT',
+    'DEFER', 'ELSE', 'FALLTHROUGH', 'FOR', 'FUNC',
+    'GOTO', 'IF', 'IMPORT', 'INTERFACE', 'MAP',
+    'PACKAGE', 'RANGE', 'RETURN', 'STRUCT',
+    'SWITCH', 'TYPE', 'VAR' }
 
 operators = {
     'ADD',  # +
@@ -70,8 +69,8 @@ reserved = {}
 for r in keywords:
     reserved[r.lower()] = r
 
-types = {'INTEGER', 'OCTAL', 'HEX', 'FLOAT',
-         'STRING', 'IMAGINARY', 'RUNE', 'IDENT'}
+types = {'INTEGER_LIT', 'OCTAL_LIT', 'HEX_LIT', 'FLOAT_LIT',
+         'STRING_LIT', 'IMAGINARY_LIT', 'RUNE_LIT', 'IDENT'}
 
 tokens = list(operators) \
     + list(types) + list(reserved.values())
@@ -88,6 +87,7 @@ t_OR = r'\|'
 t_XOR = r'\^'
 t_SHL = r'<<'
 t_SHR = r'>>'
+t_AND_NOT = r'&\^'
 t_ADD_AGN = r'\+='
 t_SUB_AGN = r'-='
 t_MUL_AGN = r'\*='
@@ -98,6 +98,7 @@ t_OR_AGN = r'\|='
 t_XOR_AGN = r'\^='
 t_SHL_AGN = r'<<='
 t_SHR_AGN = r'>>='
+t_AND_NOT_AGN = r'&\^='
 t_LAND = r'&&'
 t_LOR = r'\|\|'
 t_INC = r'\+\+'
@@ -111,7 +112,7 @@ t_NEQ = r'!='
 t_LEQ = r'<='
 t_GEQ = r'>='
 t_DEFN = r':='
-# t_ELPS = r'\.\.\.'
+t_ELPS = r'\.\.\.'
 t_LPRN = r'\('
 t_LSQR = r'\['
 t_LCURL = r'\{'

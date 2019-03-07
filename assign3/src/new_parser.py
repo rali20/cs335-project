@@ -5,7 +5,9 @@ import ply.yacc as yacc
 from new_lexer import *
 
 precedence = (
-    ('right', 'AGN', 'NOT'),
+    ('right', 'AGN','ADD_AGN','SUB_AGN','MUL_AGN',
+        'QUO_AGN','REM_AGN','AND_AGN','OR_AGN',
+        'XOR_AGN','SHL_AGN','SHR_AGN','AND_NOT_AGN'),
     ('left', 'LOR'),
     ('left', 'LAND'),
     ('left', 'OR'),
@@ -13,9 +15,11 @@ precedence = (
     ('left', 'AND'),
     ('left', 'EQL', 'NEQ'),
     ('left', 'LSS', 'GTR', 'LEQ', 'GEQ'),
-    ('left', 'SHL', 'SHR'),
+    ('left', 'SHL', 'SHR', 'AND_NOT'),
     ('left', 'ADD', 'SUB'),
-    ('left', 'MUL', 'QUO', 'REM', '')
+    ('left', 'MUL', 'QUO', 'REM'),
+    ('right', 'NOT'),
+    ('left', 'INC', 'DEC')
 )
 
 def p_start(p):
@@ -37,7 +41,7 @@ def p_import(p):
                | IMPORT LPRN RPRN'''
 
 def p_import_stmt(p):
-    '''ImportStmt : ImportHere STRING'''
+    '''ImportStmt : ImportHere STRING_LIT'''
 
 def p_import_stmt_list(p):
     '''ImportStmtList : ImportStmt
@@ -85,7 +89,7 @@ def p_type_decl_name(p):
 def p_type_decl(p):
     '''TypeDecl : TypeDeclName NType'''
 
-dec p_inc_dec_op(p):
+def p_inc_dec_op(p):
     '''IncDecOp : INC
                 | DEC'''
 
@@ -170,13 +174,13 @@ def p_ntype(p):
       |	LPRN NType RPRN'''
 
 def p_non_expr_type(p):
-'''NonExprType : FuncType
+    '''NonExprType : FuncType
             | OtherType
             | MUL NonExprType'''
 
 def p_other_type(p):
-    '''OtherType : LSQR OExpr LSQR NType
-          | MAP LSQR NType LSQR NType
+    '''OtherType : LSQR OExpr RSQR NType
+          | MAP LSQR NType RSQR NType
           | StructType
           | InterfaceType'''
 
@@ -400,9 +404,9 @@ def p_pexp_no_paren(p):
                     | PExpr DOT IDENT
                     | PExpr DOT LPRN ExprOrType RPRN
                     | PExpr DOT LPRN TYPE RPRN
-                    | PExpr LSQR Expr LSQR
-                    | PExpr LSQR OExpr COLON OExpr LSQR
-                    | PExpr LSQR OExpr COLON OExpr COLON OExpr LSQR
+                    | PExpr LSQR Expr RSQR
+                    | PExpr LSQR OExpr COLON OExpr RSQR
+                    | PExpr LSQR OExpr COLON OExpr COLON OExpr RSQR
                     | PseudoCall
                     | ConvType LPRN Expr OComma RPRN
                     | CompType LCURL BracedKeyvalList RCURL
@@ -417,8 +421,8 @@ def p_conv_type(p):
 def p_comp_type(p):
     '''CompType : OtherType'''
 
-def p_start_comp_lit(p):
-    '''StartCompLit : empty'''
+# def p_start_comp_lit(p):
+#     '''StartCompLit : empty'''
 
 def p_key_val(p):
     '''Keyval : Expr COLON CompLitExpr'''
@@ -487,7 +491,7 @@ def p_uexpr(p):
       | XOR UExpr'''
 
 def p_for_comp_expr(p):
-    '''ForCompExpr : LSQR Expr OR RangeStmt LSQR'''
+    '''ForCompExpr : LSQR Expr OR RangeStmt RSQR'''
 
 def p_pseudocall(p):
     '''PseudoCall : PExpr LPRN RPRN
@@ -496,3 +500,8 @@ def p_pseudocall(p):
 
 def p_empty(p):
     '''empty : '''
+
+def p_error(p):
+    print(p)
+
+parser = yacc.yacc()
