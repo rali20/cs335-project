@@ -2,9 +2,9 @@ import sys
 import ply.lex as lex
 
 keywords = {
-    'BREAK', 'CASE', 'CONST', 'CONTINUE', 'DEFAULT',
-    'ELSE', 'FOR', 'FUNC', 'GOTO', 'IF', 'IMPORT',
-    'PACKAGE', 'RETURN', 'STRUCT', 'SWITCH',
+    'BREAK', 'CASE', 'CONST', 'CONTINUE', 'DEFAULT', 'DEFER',
+    'ELSE', 'FALLTHROUGH', 'FOR', 'FUNC', 'GOTO', 'IF', 'IMPORT',
+    'INTERFACE', 'MAP', 'PACKAGE', 'RANGE', 'RETURN', 'STRUCT', 'SWITCH',
     'TYPE', 'VAR',
     'INT_T', 'FLOAT_T', 'UINT_T', 'COMPLEX_T',
     'RUNE_T', 'BOOL_T', 'STRING_T', 'TYPECAST'}
@@ -21,6 +21,7 @@ operators = {
     'XOR',     # ^
     'SHL',     # <<
     'SHR',     # >>
+    'AND_NOT',   # &^
 
     'ADD_AGN',  # +=
     'SUB_AGN',  # -=
@@ -33,6 +34,7 @@ operators = {
     'XOR_AGN',     # ^=
     'SHL_AGN',     # <<=
     'SHR_AGN',     # >>=
+    'AND_NOT_AGN',  # &^=
 
     'LAND',  # &&
     'LOR',   # ||
@@ -146,37 +148,37 @@ def t_RUNE(t):
 
 
 @lex.TOKEN(string_lit)
-def t_STRING(t):
+def t_STRING_LIT(t):
     t.value = t.value[1:-1]
     return t
 
 
 @lex.TOKEN(imaginary_lit)
-def t_IMAGINARY(t):
+def t_IMAGINARY_LIT(t):
     t.value = complex(t.value.replace('i', 'j'))
     return t
 
 
 @lex.TOKEN(float_lit)
-def t_FLOAT(t):
+def t_FLOAT_LIT(t):
     t.value = float(t.value)
     return t
 
 
 @lex.TOKEN(hex_lit)
-def t_HEX(t):
+def t_HEX_LIT(t):
     t.value = int(t.value, 16)
     return t
 
 
 @lex.TOKEN(octal_lit)
-def t_OCTAL(t):
+def t_OCTAL_LIT(t):
     t.value = int(t.value, 8)
     return t
 
 
 @lex.TOKEN(decimal_lit)
-def t_INTEGER(t):
+def t_INTEGER_LIT(t):
     t.value = int(t.value)
     return t
 

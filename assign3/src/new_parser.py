@@ -15,8 +15,11 @@ precedence = (
     ('left', 'LSS', 'GTR', 'LEQ', 'GEQ'),
     ('left', 'SHL', 'SHR'),
     ('left', 'ADD', 'SUB'),
-    ('left', 'MUL', 'QUO', 'REM')
+    ('left', 'MUL', 'QUO', 'REM', '')
 )
+
+def p_start(p):
+    '''start : SourceFile'''
 
 def p_source_file(p):
     '''SourceFile    : PackageClause Imports DeclList'''
@@ -34,7 +37,7 @@ def p_import(p):
                | IMPORT LPRN RPRN'''
 
 def p_import_stmt(p):
-    '''ImportStmt : ImportHere string_literal'''
+    '''ImportStmt : ImportHere STRING'''
 
 def p_import_stmt_list(p):
     '''ImportStmtList : ImportStmt
@@ -83,15 +86,28 @@ def p_type_decl(p):
     '''TypeDecl : TypeDeclName NType'''
 
 dec p_inc_dec_op(p):
-    '''Inc_dec_op : INC
+    '''IncDecOp : INC
                 | DEC'''
 
 def p_simple_stmt(p):
     '''SimpleStmt : Expr
-                | Expr mod_assign_op Expr
+                | Expr QuickAssignOp Expr
                 | ExprList AGN ExprList
                 | ExprList DEFN ExprList
-                | Expr Inc_dec_op'''
+                | Expr IncDecOp'''
+
+def p_quick_assign_op(p):
+    '''QuickAssignOp : ADD_AGN
+                    | SUB_AGN
+                    | MUL_AGN
+                    | QUO_AGN
+                    | REM_AGN
+                    | AND_AGN
+                    | OR_AGN
+                    | XOR_AGN
+                    | SHL_AGN
+                    | SHR_AGN
+                    | AND_NOT_AGN'''
 
 def p_case(p):
     '''Case : CASE ExprOrTypeList COLON
@@ -177,7 +193,7 @@ def p_func_decl(p):
 
 def p_func_Decl_(p):
     '''FuncDecl_ : IDENT ArgList FuncRes
-                | left_tuple OArgTypeListOComma right_tuple IDENT ArgList FuncRes'''
+                | LPRN OArgTypeListOComma RPRN IDENT ArgList FuncRes'''
 
 def p_func_type(p):
     '''FuncType : FUNC ArgList FuncRes'''
@@ -193,7 +209,7 @@ def p_func_body(p):
 def p_func_res(p):
     '''FuncRes : empty
                 | FuncRetType
-                | left_tuple OArgTypeListOComma right_tuple'''
+                | LPRN OArgTypeListOComma RPRN'''
 
 def p_struct_decl_list(p):
     '''StructDeclList : StructDecl
@@ -281,10 +297,13 @@ def p_oliteral(p):
          | Literal'''
 
 def p_literal(p):
-    '''Literal : int_lit
-        | float_lit
-        | rune_lit
-        | string_literal'''
+    '''Literal : INTEGER_LIT
+        | OCTAL_LIT
+        | HEX_LIT
+        | IMAGINARY_LIT
+        | FLOAT_LIT
+        | RUNE_LIT
+        | STRING_LIT'''
 
 def p_embed(p):
     '''Embed : IDENT'''
@@ -319,9 +338,9 @@ def p_new_name_list(p):
 
 def p_keyval_list(p):
     '''KeyvalList : Keyval
-           | BareCompLitExpr
+           | CompLitExpr
            | KeyvalList COMMA Keyval
-           | KeyvalList COMMA BareCompLitExpr'''
+           | KeyvalList COMMA CompLitExpr'''
 
 def p_braced_keyval_list(p):
     '''BracedKeyvalList : empty
@@ -385,9 +404,9 @@ def p_pexp_no_paren(p):
                     | PExpr LSQR OExpr COLON OExpr LSQR
                     | PExpr LSQR OExpr COLON OExpr COLON OExpr LSQR
                     | PseudoCall
-                    | ConvType SHL Expr OComma SHR
-                    | CompType left_banana BracedKeyvalList right_banana
-                    | PExpr left_banana BracedKeyvalList right_banana
+                    | ConvType LPRN Expr OComma RPRN
+                    | CompType LCURL BracedKeyvalList RCURL
+                    | PExpr LCURL BracedKeyvalList RCURL
                     | FuncLiteral
                     | ForCompExpr'''
 
@@ -404,13 +423,9 @@ def p_start_comp_lit(p):
 def p_key_val(p):
     '''Keyval : Expr COLON CompLitExpr'''
 
-def p_bare_comp_lit_exp(p):
-    '''BareCompLitExpr : Expr
-                | left_banana BracedKeyvalList right_banana'''
-
 def p_comp_lit_exp(p):
     '''CompLitExpr : Expr
-            | left_banana BracedKeyvalList right_banana'''
+            | LCURL BracedKeyvalList RCURL'''
 
 def p_exp_or_type(p):
     '''ExprOrType : Expr
@@ -423,16 +438,16 @@ def p_switch_stmt(p):
     '''SwitchStmt : SWITCH IfHeader LCURL CaseBlockList RCURL'''
 
 def p_mul_op(p):
-    '''Mul_op : QUO
+    '''MulOp : QUO
             | REM
             | SHL
             | SHR
             | AND
-            | AND_XOR'''
+            | AND_NOT'''
 
 def p_prec5expr_(p):
     '''Prec5Expr_ : UExpr
-           | Prec5Expr_ Mul_op UExpr
+           | Prec5Expr_ MulOp UExpr
            | Prec5Expr_ MUL UExpr'''
 
 def p_prec4expr_(p):
@@ -443,7 +458,7 @@ def p_prec4expr_(p):
            | Prec4Expr_ OR Prec5Expr_'''
 
 def p_rel_rop(p):
-    '''Rel_op : EQL
+    '''RelOp : EQL
                 | NEQ
                 | LEQ
                 | GEQ
@@ -452,7 +467,7 @@ def p_rel_rop(p):
 
 def p_prec3expr_(p):
     '''Prec3Expr_ : Prec4Expr_
-           | Prec3Expr_ Rel_op Prec4Expr_'''
+           | Prec3Expr_ RelOp Prec4Expr_'''
 
 def p_prec2expr_(p):
     '''Prec2Expr_ : Prec3Expr_
@@ -464,16 +479,20 @@ def p_expr(p):
 
 def p_uexpr(p):
     '''UExpr : PExpr
-      | NAND UExpr
+      | NOT UExpr
+      | AND UExpr
       | MUL UExpr
       | ADD UExpr
       | SUB UExpr
       | XOR UExpr'''
 
 def p_for_comp_expr(p):
-    '''ForCompExpr : LSQR Expr pipe RangeStmt LSQR'''
+    '''ForCompExpr : LSQR Expr OR RangeStmt LSQR'''
 
 def p_pseudocall(p):
     '''PseudoCall : PExpr LPRN RPRN
            | PExpr LPRN ExprOrTypeList OComma RPRN
            | PExpr LPRN ExprOrTypeList ELPS OComma RPRN'''
+
+def p_empty(p):
+    '''empty : '''
