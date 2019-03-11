@@ -193,26 +193,24 @@ def p_interface_type(p):
               | INTERFACE LCURL RCURL'''
 
 def p_func_decl(p):
-    '''FuncDecl : FUNC FuncDecl_ FuncBody'''
+    '''FuncDecl : FUNC FuncName ArgList FuncRes FuncBody'''
 
-def p_func_Decl_(p):
-    '''FuncDecl_ : IDENT ArgList FuncRes
-                | LPRN OArgTypeListOComma RPRN IDENT ArgList FuncRes'''
-
-def p_func_type(p):
-    '''FuncType : FUNC ArgList FuncRes'''
-
-def p_arg_list(p):
-    '''ArgList : LPRN OArgTypeListOComma RPRN
-                | ArgList LPRN OArgTypeListOComma RPRN'''
+def p_func_name(p):
+    '''FuncName : IDENT'''
 
 def p_func_body(p):
     '''FuncBody : empty
                 | LCURL StmtList RCURL'''
 
+def p_func_type(p):
+    '''FuncType : FUNC ArgList FuncRes'''
+
+def p_arg_list(p):
+    '''ArgList : LPRN OArgTypeListOComma RPRN'''
+
+
 def p_func_res(p):
     '''FuncRes : empty
-                | FuncRetType
                 | LPRN OArgTypeListOComma RPRN'''
 
 def p_struct_decl_list(p):
@@ -248,11 +246,11 @@ def p_new_name(p):
 def p_ptr_type(p):
     '''PtrType : MUL NType'''
 
-def p_func_ret_type(p):
-    '''FuncRetType : FuncType
-                    | OtherType
-                    | PtrType
-                    | DotName'''
+# def p_func_ret_type(p):
+#     '''FuncRetType : FuncType
+#                     | OtherType
+#                     | PtrType
+#                     | DotName'''
 
 def p_dot_name(p):
     '''DotName : Name
@@ -441,54 +439,39 @@ def p_name_or_type(p):
 def p_switch_stmt(p):
     '''SwitchStmt : SWITCH IfHeader LCURL CaseBlockList RCURL'''
 
-def p_mul_op(p):
-    '''MulOp : QUO
-            | REM
-            | SHL
-            | SHR
-            | AND
-            | AND_NOT'''
-
-def p_prec5expr_(p):
-    '''Prec5Expr_ : UExpr
-           | Prec5Expr_ MulOp UExpr
-           | Prec5Expr_ MUL UExpr'''
-
-def p_prec4expr_(p):
-    '''Prec4Expr_ : Prec5Expr_
-           | Prec4Expr_ ADD Prec5Expr_
-           | Prec4Expr_ SUB Prec5Expr_
-           | Prec4Expr_ XOR Prec5Expr_
-           | Prec4Expr_ OR Prec5Expr_'''
-
-def p_rel_rop(p):
-    '''RelOp : EQL
-                | NEQ
-                | LEQ
-                | GEQ
-                | GTR
-                | LSS'''
-
-def p_prec3expr_(p):
-    '''Prec3Expr_ : Prec4Expr_
-           | Prec3Expr_ RelOp Prec4Expr_'''
-
-def p_prec2expr_(p):
-    '''Prec2Expr_ : Prec3Expr_
-           | Prec2Expr_ LAND Prec3Expr_'''
-
 def p_expr(p):
-    '''Expr       : Prec2Expr_
-           | Expr LOR Prec2Expr_'''
+    '''Expr : UExpr
+            | Expr LOR Expr
+            | Expr LAND Expr
+            | Expr EQL Expr
+            | Expr NEQ Expr
+            | Expr LSS Expr
+            | Expr GTR Expr
+            | Expr LEQ Expr
+            | Expr GEQ Expr
+            | Expr OR Expr
+            | Expr XOR Expr
+            | Expr QUO Expr
+            | Expr REM Expr
+            | Expr SHL Expr
+            | Expr SHR Expr
+            | Expr ADD Expr
+            | Expr SUB Expr
+            | Expr MUL Expr
+            | Expr AND Expr
+            | Expr AND_NOT Expr'''
 
 def p_uexpr(p):
     '''UExpr : PExpr
-      | NOT UExpr
-      | AND UExpr
-      | MUL UExpr
-      | ADD UExpr
-      | SUB UExpr
-      | XOR UExpr'''
+      | UnaryOp UExpr'''
+
+def p_unary_op(p):
+    '''UnaryOp : ADD
+               | SUB
+               | NOT
+               | XOR
+               | MUL
+               | AND'''
 
 def p_for_comp_expr(p):
     '''ForCompExpr : LSQR Expr OR RangeStmt RSQR'''
