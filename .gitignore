@@ -1,2 +1,6 @@
 __pycache__
 *.html
+*.pyc
+*.out
+*.ps
+parsetab.py

@@ -1,13 +1,13 @@
 import ply.lex as lex
 
-# Removed 
-# INTERFACE, FALLTHROUGH, DEFER, 
+# Removed
+# INTERFACE, FALLTHROUGH, DEFER,
 # CHAN, RANGE, GO, SELECT, MAP
 
 keywords = {
-  'BREAK', 'CASE', 'CONST', 'CONTINUE', 'DEFAULT',
-	'ELSE', 'FOR', 'FUNC', 'GOTO', 'IF', 'IMPORT', 
-	'PACKAGE', 'RETURN', 'STRUCT', 'SWITCH', 
+    'BREAK', 'CASE', 'CONST', 'CONTINUE', 'DEFAULT',
+	'ELSE', 'FOR', 'FUNC', 'GOTO', 'IF', 'IMPORT',
+	'PACKAGE', 'RETURN', 'STRUCT', 'SWITCH',
 	'TYPE', 'VAR',
 	# Added
 	'INT', 'FLOAT', 'UINT', 'COMPLEX', 'BOOL',
