@@ -114,9 +114,7 @@ def p_quick_assign_op(p):
                     | AND_NOT_AGN'''
 
 def p_case(p):
-    '''Case : CASE ExprOrTypeList COLON
-            | CASE ExprOrTypeList AGN Expr COLON
-            | CASE ExprOrTypeList DEFN Expr COLON
+    '''Case : CASE ExprList COLON
             | DEFAULT COLON'''
 
 def p_compound_stmt(p):
@@ -179,7 +177,7 @@ def p_non_expr_type(p):
             | MUL NonExprType'''
 
 def p_other_type(p):
-    '''OtherType : LSQR OExpr RSQR NType
+    '''OtherType : LSQR Expr RSQR NType
           | MAP LSQR NType RSQR NType
           | StructType
           | InterfaceType'''
@@ -222,12 +220,12 @@ def p_interface_decl_list(p):
                         | InterfaceDeclList SEMCLN InterfaceDecl'''
 
 def p_struct_decl(p):
-    '''StructDecl : NewNameList NType OLiteral
-                    | Embed OLiteral
-                    | LPRN Embed RPRN OLiteral
-                    | MUL Embed OLiteral
-                    | LPRN MUL Embed RPRN OLiteral
-                    | MUL LPRN Embed RPRN OLiteral'''
+    '''StructDecl : NewNameList NType OTag
+                    | Embed OTag
+                    | LPRN Embed RPRN OTag
+                    | MUL Embed OTag
+                    | LPRN MUL Embed RPRN OTag
+                    | MUL LPRN Embed RPRN OTag'''
 
 def p_interface_decl(p):
     '''InterfaceDecl : NewName InDecl
@@ -294,9 +292,9 @@ def p_expr_or_type_list(p):
     '''ExprOrTypeList : ExprOrType
                | ExprOrTypeList COMMA ExprOrType'''
 
-def p_oliteral(p):
-    '''OLiteral : empty
-         | Literal'''
+def p_otag(p):
+    '''OTag : empty
+         | STRING_LIT'''
 
 def p_literal(p):
     '''Literal : INTEGER_LIT
@@ -384,7 +382,7 @@ def p_non_decl_stmt(p):
                 | FALLTHROUGH
                 | BREAK ONewName
                 | CONTINUE ONewName
-                | DEFER PseudoCall
+                | DEFER Expr
                 | GOTO NewName
                 | RETURN OExprList'''
 
