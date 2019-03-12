@@ -37,8 +37,8 @@ def p_imports(p):
 
 def p_import(p):
     '''Import     : IMPORT ImportStmt
-               | IMPORT LPRN ImportStmtList OSemi RPRN
-               | IMPORT LPRN RPRN'''
+                  | IMPORT LPRN ImportStmtList OSemi RPRN
+                  | IMPORT LPRN RPRN'''
 
 def p_import_stmt(p):
     '''ImportStmt : ImportHere STRING_LIT'''
@@ -118,7 +118,7 @@ def p_case(p):
             | DEFAULT COLON'''
 
 def p_compound_stmt(p):
-    '''CompoundStmt : LCURL StmtList RCURL'''
+    '''CompoundStmt : LCURL StartScope StmtList EndScope RCURL'''
 
 def p_case_block(p):
     '''CaseBlock : Case StmtList'''
@@ -128,7 +128,7 @@ def p_case_block_list(p):
                     | CaseBlockList CaseBlock'''
 
 def p_loop_body(p):
-    '''LoopBody : LCURL StmtList RCURL'''
+    '''LoopBody : LCURL StartScope StmtList EndScope RCURL'''
 
 def p_range_stmt(p):
     '''RangeStmt : ExprList AGN RANGE Expr
@@ -144,25 +144,25 @@ def p_for_body(p):
     '''ForBody : ForHeader LoopBody'''
 
 def p_for_stmt(p):
-    '''ForStmt : FOR ForBody'''
+    '''ForStmt : FOR StartScope ForBody EndScope'''
 
 def p_if_header(p):
-    '''IfHeader : OSimpleStmt
-         | OSimpleStmt SEMCLN OSimpleStmt'''
+    '''IfHeader : Expr
+                | OSimpleStmt SEMCLN Expr'''
 
 def p_if_stmt(p):
-    '''IfStmt : IF IfHeader LoopBody ElseIfList Else'''
+    '''IfStmt : IF StartScope IfHeader LoopBody ElseIfList ElseStmt EndScope'''
 
 def p_else_if(p):
     '''ElseIf : ELSE IF IfHeader LoopBody'''
 
 def p_else_if_list(p):
     '''ElseIfList : empty
-           | ElseIfList ElseIf'''
+                  | ElseIfList ElseIf'''
 
 def p_else(p):
-    '''Else : empty
-     | ELSE CompoundStmt'''
+    '''ElseStmt : empty
+                | ELSE CompoundStmt'''
 
 def p_ntype(p):
     '''NType : FuncType
@@ -359,7 +359,7 @@ def p_arg_type(p):
 
 def p_arg_type_list(p):
     '''ArgTypeList : ArgType
-            | ArgTypeList COMMA ArgType'''
+                   | ArgTypeList COMMA ArgType'''
 
 
 def p_oarg_type_list_ocomma(p):
@@ -430,7 +430,7 @@ def p_name_or_type(p):
     '''NameOrType : NType'''
 
 def p_switch_stmt(p):
-    '''SwitchStmt : SWITCH IfHeader LCURL CaseBlockList RCURL'''
+    '''SwitchStmt : SWITCH StartScope IfHeader LCURL CaseBlockList RCURL EndScope'''
 
 def p_expr(p):
     '''Expr : UExpr
@@ -476,6 +476,12 @@ def p_pseudocall(p):
 
 def p_empty(p):
     '''empty : '''
+
+def p_start_scope(p):
+    '''StartScope : empty'''
+
+def p_end_scope(p):
+    '''EndScope : empty'''
 
 def p_error(p):
     print(p)
