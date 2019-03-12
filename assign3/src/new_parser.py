@@ -166,10 +166,10 @@ def p_else(p):
 
 def p_ntype(p):
     '''NType : FuncType
-      |	OtherType
-      |	PtrType
-      |	DotName
-      |	LPRN NType RPRN'''
+             |	OtherType
+             |	PtrType
+             |	DotName
+             |	LPRN NType RPRN'''
 
 def p_non_expr_type(p):
     '''NonExprType : FuncType
@@ -191,10 +191,8 @@ def p_interface_type(p):
               | INTERFACE LCURL RCURL'''
 
 def p_func_decl(p):
-    '''FuncDecl : FUNC FuncName ArgList FuncRes FuncBody'''
-
-def p_func_name(p):
-    '''FuncName : IDENT'''
+    '''FuncDecl : FUNC IDENT ArgList FuncRes FuncBody
+                | FUNC LPRN_OR OArgTypeListOComma RPRN_OR IDENT ArgList FuncRes FuncBody'''
 
 def p_func_body(p):
     '''FuncBody : empty
@@ -209,7 +207,8 @@ def p_arg_list(p):
 
 def p_func_res(p):
     '''FuncRes : empty
-                | LPRN OArgTypeListOComma RPRN'''
+               | FuncRetType
+               | LPRN_OR OArgTypeListOComma RPRN_OR'''
 
 def p_struct_decl_list(p):
     '''StructDeclList : StructDecl
@@ -244,11 +243,11 @@ def p_new_name(p):
 def p_ptr_type(p):
     '''PtrType : MUL NType'''
 
-# def p_func_ret_type(p):
-#     '''FuncRetType : FuncType
-#                     | OtherType
-#                     | PtrType
-#                     | DotName'''
+def p_func_ret_type(p):
+    '''FuncRetType : FuncType
+                    | OtherType
+                    | PtrType
+                    | DotName'''
 
 def p_dot_name(p):
     '''DotName : Name
@@ -406,7 +405,6 @@ def p_pexp_no_paren(p):
                     | PseudoCall
                     | ConvType LPRN Expr OComma RPRN
                     | CompType LCURL BracedKeyvalList RCURL
-                    | PExpr LCURL BracedKeyvalList RCURL
                     | FuncLiteral
                     | ForCompExpr'''
 
@@ -417,15 +415,12 @@ def p_conv_type(p):
 def p_comp_type(p):
     '''CompType : OtherType'''
 
-# def p_start_comp_lit(p):
-#     '''StartCompLit : empty'''
-
 def p_key_val(p):
     '''Keyval : Expr COLON CompLitExpr'''
 
 def p_comp_lit_exp(p):
     '''CompLitExpr : Expr
-            | LCURL BracedKeyvalList RCURL'''
+                   | LCURL BracedKeyvalList RCURL'''
 
 def p_exp_or_type(p):
     '''ExprOrType : Expr
@@ -461,7 +456,7 @@ def p_expr(p):
 
 def p_uexpr(p):
     '''UExpr : PExpr
-      | UnaryOp UExpr'''
+             | UnaryOp UExpr'''
 
 def p_unary_op(p):
     '''UnaryOp : ADD
@@ -476,8 +471,8 @@ def p_for_comp_expr(p):
 
 def p_pseudocall(p):
     '''PseudoCall : PExpr LPRN RPRN
-           | PExpr LPRN ExprOrTypeList OComma RPRN
-           | PExpr LPRN ExprOrTypeList ELPS OComma RPRN'''
+                  | PExpr LPRN ExprOrTypeList OComma RPRN
+                  | PExpr LPRN ExprOrTypeList ELPS OComma RPRN'''
 
 def p_empty(p):
     '''empty : '''
