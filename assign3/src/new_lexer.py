@@ -173,12 +173,14 @@ def t_FLOAT_LIT(t):
 @lex.TOKEN(hex_lit)
 def t_HEX_LIT(t):
     t.value = int(t.value, 16)
+    # t.type = 'INTEGER_LIT'
     return t
 
 
 @lex.TOKEN(octal_lit)
 def t_OCTAL_LIT(t):
     t.value = int(t.value, 8)
+    # t.type = 'INTEGER_LIT'
     return t
 
 
