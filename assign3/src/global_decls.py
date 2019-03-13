@@ -24,19 +24,18 @@ ast_imports = []
 # global ast_expr = {  }
 
 # possible scopes: package, global, functions, ....
-global curr_scope = NULL
 global curr_scope
 curr_scope = None
 class ScopeTree:
-    def __init__(self, scopeName, parent):
+    def __init__(self, parent, scopeName=None):
         self.children = []
         self.parent = parent
         self.symbolTable = {} #{"var": [type, size, value, offset]}
         self.identity = {"name":scopeName}
     def insert(self, id, type):
         self.symbolTable[id] = [type]
-    def makeChildren(self, childName, curr_scope):
-        child = ScopeTree(childName, self)
+    def makeChildren(self, childName=None):
+        child = ScopeTree(self, childName)
         self.children.append(child)
         return child
     def lookup(self, id):
@@ -44,3 +43,9 @@ class ScopeTree:
             return self.symbolTable[id]
         else:
             return self.parent.lookup(id)
+
+
+class container:
+    def __init__(self, Type=None, Value=None):
+        self.type = None
+        self.value = None

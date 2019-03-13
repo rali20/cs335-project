@@ -3,6 +3,7 @@ import os
 import ply.yacc as yacc
 
 from new_lexer import *
+from global_decls import *
 
 precedence = (
     ('right', 'AGN','ADD_AGN','SUB_AGN','MUL_AGN',
@@ -191,8 +192,8 @@ def p_interface_type(p):
               | INTERFACE LCURL RCURL'''
 
 def p_func_decl(p):
-    '''FuncDecl : FUNC IDENT ArgList FuncRes FuncBody
-                | FUNC LPRN_OR OArgTypeListOComma RPRN_OR IDENT ArgList FuncRes FuncBody'''
+    '''FuncDecl : FUNC IDENT StartScope ArgList FuncRes FuncBody EndScope
+                | FUNC LPRN_OR StartScope OArgTypeListOComma RPRN_OR IDENT ArgList FuncRes FuncBody EndScope'''
 
 def p_func_body(p):
     '''FuncBody : empty
@@ -303,6 +304,11 @@ def p_literal(p):
         | FLOAT_LIT
         | RUNE_LIT
         | STRING_LIT'''
+    if(type(p[1])==int):
+        p[0] = container(int, p[1])
+    else if(type(p[1])==str):
+        p[0] = container(str, p[1])
+
 
 def p_embed(p):
     '''Embed : IDENT'''
@@ -479,11 +485,16 @@ def p_empty(p):
 
 def p_start_scope(p):
     '''StartScope : empty'''
+    curr_scope = curr_scope.makeChildren()
 
 def p_end_scope(p):
     '''EndScope : empty'''
+    curr_scope = curr_scope.parent
 
 def p_error(p):
     print(p)
 
+
+root = ScopeTree("global", None)
+curr_scope = root
 parser = yacc.yacc()
