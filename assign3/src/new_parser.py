@@ -95,23 +95,23 @@ def p_inc_dec_op(p):
 
 def p_simple_stmt(p):
     '''SimpleStmt : Expr
-                | Expr QuickAssignOp Expr
+                | Expr ShortAgnOp Expr
                 | ExprList AGN ExprList
                 | ExprList DEFN ExprList
                 | Expr IncDecOp'''
 
 def p_quick_assign_op(p):
-    '''QuickAssignOp : ADD_AGN
-                    | SUB_AGN
-                    | MUL_AGN
-                    | QUO_AGN
-                    | REM_AGN
-                    | AND_AGN
-                    | OR_AGN
-                    | XOR_AGN
-                    | SHL_AGN
-                    | SHR_AGN
-                    | AND_NOT_AGN'''
+    '''ShortAgnOp : ADD_AGN
+                | SUB_AGN
+                | MUL_AGN
+                | QUO_AGN
+                | REM_AGN
+                | AND_AGN
+                | OR_AGN
+                | XOR_AGN
+                | SHL_AGN
+                | SHR_AGN
+                | AND_NOT_AGN'''
 
 def p_case(p):
     '''Case : CASE ExprList COLON
