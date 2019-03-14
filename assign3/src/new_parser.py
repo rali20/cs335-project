@@ -5,6 +5,12 @@ import ply.yacc as yacc
 from new_lexer import *
 from global_decls import *
 
+root = ScopeTree(None, scopeName="global")
+# global curr_scope
+# print(curr_scope,1)
+curr_scope = root
+# print(curr_scope,2)
+
 precedence = (
     ('right', 'AGN','ADD_AGN','SUB_AGN','MUL_AGN',
         'QUO_AGN','REM_AGN','AND_AGN','OR_AGN',
@@ -74,15 +80,58 @@ def p_var_decl(p):
     '''VarDecl   : DeclNameList NType
                 | DeclNameList NType AGN ExprList
                 | DeclNameList AGN ExprList'''
+    global curr_scope
+    if len(p)==5:
+        # all types on right must be same as ntype
+        for exp in p[4].value:
+            if (p[2] != exp.type):
+                raise_typerror(p[1].value,  "type mis-match in var declaration")
+        # insert
+        for i in p[1].value:
+            curr_scope.insert(i, type=p[2], is_var=1)
+
+    elif len(p)==4:
+        # check length of decllist and ExprList
+        if len(p[1].value) != len(p[3].value):
+            raise_out_of_bounds_error(p[1].value + p[3].value , "different number of variables and expressions")
+        for i in range( len(p[1].value) ):
+            curr_scope.insert(p[1].value[i], p[3].value[i].type, is_var=1)
+
+    else:
+        for i in p[1].value:
+            curr_scope.insert(i, type=p[2], is_var=1)
 
 def p_const_decl(p):
     '''ConstDecl : DeclNameList NType AGN ExprList
                 | DeclNameList AGN ExprList'''
+    global curr_scope
+    if len(p)==5:
+        # check length of decllist and ExprList
+        if len(p[1].value) != len(p[4].value):
+            raise_out_of_bounds_error(p[1].value , "different number of variables and expressions")
+        # all types on right must be same as ntype
+        for exp in p[4].value:
+            if (p[2] != exp.type):
+                raise_typerror(p[1].value, "type mis-match in const declaration")
+        # insert all left sides
+        for i in p[1].value:
+            curr_scope.insert(i, p[2], is_var=0)
+    else:
+        # check length of decllist and ExprList
+        if len(p[1].value) != len(p[3].value):
+            raise_out_of_bounds_error(p[1].value + p[3].value , "different number of variables and expressions")
+            # insert
+        for i in range( len(p[1].value) ):
+            curr_scope.insert(p[1].value[i], p[3].value[i].type, is_var=0)
 
 def p_const_decl_1(p):
     '''ConstDecl1 : ConstDecl
                 | DeclNameList NType
                 | DeclNameList'''
+    global curr_scope
+    if len(p)==3:
+        for i in p[1].value:
+            curr_scope.insert(i, p[2], is_var=0)
 
 def p_type_decl_name(p):
     '''TypeDeclName : IDENT'''
@@ -171,6 +220,11 @@ def p_ntype(p):
              |	PtrType
              |	DotName
              |	LPRN NType RPRN'''
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = p[2]
+
 
 def p_non_expr_type(p):
     '''NonExprType : FuncType
@@ -253,6 +307,11 @@ def p_func_ret_type(p):
 def p_dot_name(p):
     '''DotName : Name
                 | Name DOT IDENT'''
+    #2nd rule's type is not being taken care of
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = p[1]+"."+p[3]
 
 def p_ocomma(p):
     '''OComma : empty
@@ -287,6 +346,13 @@ def p_func_literal(p):
 def p_expr_list(p):
     '''ExprList : Expr
          | ExprList COMMA Expr'''
+    if len(p)==2:
+        p[0] = container()
+        p[0].value = [p[1]]
+    else:
+        p[0] = p[1]
+        p[0].value.append(p[3])
+
 
 def p_expr_or_type_list(p):
     '''ExprOrTypeList : ExprOrType
@@ -305,9 +371,11 @@ def p_literal(p):
         | RUNE_LIT
         | STRING_LIT'''
     if(type(p[1])==int):
-        p[0] = container(int, p[1])
-    else if(type(p[1])==str):
-        p[0] = container(str, p[1])
+        p[0] = container(type="int", value=p[1])
+    elif(type(p[1])==float):
+        p[0] = container(type="float", value=p[1])
+    elif(type(p[1])==str):
+        p[0] = container(type="string", value=p[1])
 
 
 def p_embed(p):
@@ -332,6 +400,12 @@ def p_type_decl_list(p):
 def p_decl_name_list(p):
     '''DeclNameList : DeclName
              | DeclNameList COMMA DeclName'''
+    if len(p)==2:
+        p[0] = container(value=[p[1].value])
+    else:
+        p[0] = container()
+        p[0].value = p[1].value
+        p[0].value.append(p[3].value)
 
 def p_stmt_list(p):
     '''StmtList : Stmt
@@ -353,9 +427,11 @@ def p_braced_keyval_list(p):
 
 def p_decl_name(p):
     '''DeclName : IDENT'''
+    p[0] = container(value=p[1])
 
 def p_name(p):
     '''Name : IDENT'''
+    p[0] = p[1]
 
 def p_arg_type(p):
     '''ArgType : NameOrType
@@ -398,10 +474,14 @@ def p_dot_dot_dot(p):
 def p_pexpr(p):
     '''PExpr : PExprNoParen
             | LPRN ExprOrType RPRN'''
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = p[2]
+
 
 def p_pexp_no_paren(p):
-    '''PExprNoParen : Literal
-                    | Name
+    '''PExprNoParen : Name
                     | PExpr DOT IDENT
                     | PExpr DOT LPRN ExprOrType RPRN
                     | PExpr DOT LPRN TYPE RPRN
@@ -413,6 +493,17 @@ def p_pexp_no_paren(p):
                     | CompType LCURL BracedKeyvalList RCURL
                     | FuncLiteral
                     | ForCompExpr'''
+    global curr_scope
+    p[0] = container()
+    if len(p)==2:
+        p[0].value = p[1] #name is a string
+        p[0].type = curr_scope.lookup(p[1])["type"]
+    # elif len(p)==
+
+def p_exp_no_paren2(p):
+    '''PExprNoParen : Literal'''
+    # literal is a container with value and type
+    p[0] = p[1]
 
 def p_conv_type(p):
     '''ConvType : FuncType
@@ -459,11 +550,41 @@ def p_expr(p):
             | Expr MUL Expr
             | Expr AND Expr
             | Expr AND_NOT Expr'''
+    if len(p)==4:
+        p[0] = container()
+        if p[1].type != p[3].type:
+            raise_typerror(p)
+            exit(-1)
+        p[0].type = p[1].type
+        p[0].value = str(p[1].value) + p[2] + str(p[3].value)
+    else:
+        p[0] = p[1]
 
 
 def p_uexpr(p):
     '''UExpr : PExpr
              | UnaryOp UExpr'''
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = p[2] #default
+        # switch (p[1]){
+        # case "+":
+        #     p[0] = p[2]
+        #     break
+        # case "-":
+        #     p[0] = p[2]
+        #     break;
+        # case "!":
+        #     if p[2].type == "float":
+        #         raise_typerror(p, "Invalid operand for float")
+        #     p[0].type = p[2].type
+        #     p[0].value = p[1]+p[2].value
+        #     break;
+        # # case "^": to do
+        # }
+
+
 
 def p_unary_op(p):
     '''UnaryOp : ADD
@@ -472,6 +593,7 @@ def p_unary_op(p):
                | XOR
                | MUL
                | AND'''
+    p[0] = p[1]
 
 def p_for_comp_expr(p):
     '''ForCompExpr : LSQR Expr OR RangeStmt RSQR'''
@@ -486,16 +608,42 @@ def p_empty(p):
 
 def p_start_scope(p):
     '''StartScope : empty'''
+    global curr_scope
     curr_scope = curr_scope.makeChildren()
 
 def p_end_scope(p):
     '''EndScope : empty'''
+    global curr_scope
     curr_scope = curr_scope.parent
 
 def p_error(p):
+    global curr_scope
     print(p)
+    print("syntax error")
+    print(curr_scope.identity)
 
 
-root = ScopeTree("global", None)
-curr_scope = root
+# root = ScopeTree("global", None)
+# # global curr_scope
+# curr_scope = root
 parser = yacc.yacc()
+
+
+with open("factorial.go", "r") as f:
+    data = f.read()
+result = parser.parse(data)
+
+
+def print_scopeTree(node):
+    temp = node
+    print("")
+    print("me:", temp.identity)
+    for i in temp.children:
+        print("child:", i.identity)
+    print("symbolTable:")
+    for var, val in temp.symbolTable.items():
+        print(var, val["type"], val["is_var"])
+
+    for i in temp.children:
+        print_scopeTree(i)
+print_scopeTree(root)

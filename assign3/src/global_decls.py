@@ -26,22 +26,36 @@ ast_imports = []
 # possible scopes: package, global, functions, ....
 global curr_scope
 curr_scope = None
+global scope_count
+scope_count = 0
+
 class ScopeTree:
     def __init__(self, parent, scopeName=None):
         self.children = []
         self.parent = parent
         self.symbolTable = {} #{"var": [type, size, value, offset]}
-        self.identity = {"name":scopeName}
-    def insert(self, id, type):
-        self.symbolTable[id] = [type]
+        if scopeName is None:
+            global scope_count
+            self.identity = {"name":scope_count}
+            scope_count += 1
+        else:
+            self.identity = {"name":scopeName}
+            scope_count += 1
+
+    def insert(self, id, type, is_var=1):
+        self.symbolTable[id] = {"type":type, "is_var":is_var}
+
     def makeChildren(self, childName=None):
         child = ScopeTree(self, childName)
         self.children.append(child)
         return child
+
     def lookup(self, id):
         if id in self.symbolTable:
             return self.symbolTable[id]
         else:
+            if self.parent is None:
+                raise_general_error("undeclared variable: " + id)
             return self.parent.lookup(id)
 
 
@@ -57,3 +71,18 @@ class Tac(object):
         self.arg1 = arg1
         self.arg2 = arg2
         self.dst = dst
+
+def raise_typerror(p, s=""):
+    print("Type error", s)
+    print("\t", p)
+    exit(-1)
+
+def raise_out_of_bounds_error(p, s="" ):
+    print("out of bounds error")
+    print(p)
+    print(s)
+    exit(-1)
+
+def raise_general_error(s):
+    print(s)
+    exit(-1)
