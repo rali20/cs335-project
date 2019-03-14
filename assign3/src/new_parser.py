@@ -135,9 +135,15 @@ def p_const_decl_1(p):
 
 def p_type_decl_name(p):
     '''TypeDeclName : IDENT'''
+    p[0] = p[1]
 
 def p_type_decl(p):
     '''TypeDecl : TypeDeclName NType'''
+    global curr_scope
+    curr_scope.insert_type(p[1], p[2])
+    # p[0] = container()
+    # p[0].value = p[1]
+    # p[0].type = p[2]
 
 def p_inc_dec_op(p):
     '''IncDecOp : INC
@@ -396,6 +402,10 @@ def p_const_decl_list(p):
 def p_type_decl_list(p):
     '''TypeDeclList : TypeDecl
              | TypeDeclList SEMCLN TypeDecl'''
+    # if len(p)==2:
+    #     p[0] = container()
+    #     p[0].value = [p[1].value]
+    #     p[0].type =
 
 def p_decl_name_list(p):
     '''DeclNameList : DeclName
@@ -642,6 +652,9 @@ def print_scopeTree(node):
     print("symbolTable:")
     for var, val in temp.symbolTable.items():
         print(var, val["type"], val["is_var"])
+    print("TypeTable:")
+    for new_type, Ntype in temp.typeTable.items():
+        print(new_type, Ntype)
 
     for i in temp.children:
         print_scopeTree(i)

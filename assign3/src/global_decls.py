@@ -34,6 +34,7 @@ class ScopeTree:
         self.children = []
         self.parent = parent
         self.symbolTable = {} #{"var": [type, size, value, offset]}
+        self.typeTable = {}
         if scopeName is None:
             global scope_count
             self.identity = {"name":scope_count}
@@ -44,6 +45,9 @@ class ScopeTree:
 
     def insert(self, id, type, is_var=1):
         self.symbolTable[id] = {"type":type, "is_var":is_var}
+
+    def insert_type(self, new_type, Ntype):
+        self.typeTable["new_type"] = Ntype
 
     def makeChildren(self, childName=None):
         child = ScopeTree(self, childName)
@@ -66,7 +70,7 @@ class container:
 
 def raise_typerror(p, s=""):
     print("Type error", s)
-    print("\t", p)
+    print(p)
     exit(-1)
 
 def raise_out_of_bounds_error(p, s="" ):
