@@ -72,6 +72,91 @@ class Tac(object):
         self.arg2 = arg2
         self.dst = dst
 
+class LBL(Tac):
+    '''Label Operation -> label:'''
+    pass
+
+class BOP(Tac):
+    '''Binary Operation -> dst = arg1 op arg2'''
+    def __init__(self, type, op, arg1, arg2, dst):
+        super().__init__(type,op,arg1,arg2,dst)
+
+class UOP(Tac):
+    '''Unary Operation -> dst = op arg1'''
+    def __init__(self,type,op,arg1):
+        super.__init__(type,op,arg1)
+
+class ASN(Tac):
+    '''Assignment Operation -> dst = arg1'''
+    def __init__(self,type,arg1,dst):
+        super.__init__(type,arg1=arg1,dst=dst)
+
+class JMP(Tac):
+    '''Jump Operation -> goto dst'''
+    def __init__(self,type,dst):
+        super.__init__(type,dst=dst)
+
+class JIF(Tac):
+    '''Jump If -> if arg1 goto dst'''
+    def __init__(self,type,arg1,dst):
+        super.__init__(type,arg1=arg1,dst=dst)
+
+class CBR(Tac):
+    '''Conditional Branch -> if arg1 op arg2 goto dst'''
+    def __init__(self, type, op, arg1, arg2, dst):
+        super().__init__(type,op,arg1,arg2,dst)
+
+# class BOP(Tac):
+#     '''Binary Operation
+#         dst = arg1 op arg2
+#         op can be :
+#             +  : Add
+#             -  : Subtract
+#             *  : Multiply
+#             &  : Bitwise AND
+#             |  : Bitwise OR
+#             ^  : Bitwise XOR
+#             && : Logical AND
+#             || : Logical OR
+#     '''
+#     def __init__(self, type, op, arg1, arg2, dst):
+#         super().__init__(type,op,arg1,arg2,dst)
+#
+# class LOP(Tac):
+#     '''Logical Operation
+#         dst = arg1 op arg2
+#         op can be :
+#             <  : Less Than
+#             >  : Greater Than
+#             <= : Less Than Equal
+#             >= : Greater Than Equal
+#             == : Equals
+#             != : Not Equals
+#     '''
+#     def __init__(self, type, op, arg1, arg2, dst):
+#         super().__init__(type,op,arg1,arg2,dst)
+#
+# class SOP(Tac):
+#     '''Shift Operation
+#         dst = arg1 op arg2
+#         op can be :
+#             << : Bitwise Shift Left
+#             >> : Bitwise Shift Right
+#     '''
+#     def __init__(self, type, op, arg1, arg2, dst):
+#         super().__init__(type,op,arg1,arg2,dst)
+#
+# class DOP(Tac):
+#     '''Division Operation
+#         dst = arg1 op arg2
+#         op can be :
+#             / : Divide
+#             % : Remainder
+#     '''
+#     def __init__(self, type, op, arg1, arg2, dst):
+#         super().__init__(type,op,arg1,arg2,dst)
+
+
 def raise_typerror(p, s=""):
     print("Type error", s)
     print("\t", p)
