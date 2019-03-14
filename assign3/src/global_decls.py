@@ -49,3 +49,11 @@ class container:
     def __init__(self, Type=None, Value=None):
         self.type = None
         self.value = None
+
+class Tac(object):
+    def __init__(self, type=None, op=None, arg1=None, arg2=None, dst=None):
+        self.type = type
+        self.op = op
+        self.arg1 = arg1
+        self.arg2 = arg2
+        self.dst = dst

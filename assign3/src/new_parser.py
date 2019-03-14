@@ -34,7 +34,7 @@ def p_package_clause(p):
 
 def p_imports(p):
     '''Imports    : empty
-                | Imports Import SEMCLN'''
+                  | Imports Import SEMCLN'''
 
 def p_import(p):
     '''Import     : IMPORT ImportStmt
@@ -46,29 +46,29 @@ def p_import_stmt(p):
 
 def p_import_stmt_list(p):
     '''ImportStmtList : ImportStmt
-               | ImportStmtList SEMCLN ImportStmt'''
+                      | ImportStmtList SEMCLN ImportStmt'''
 
 def p_import_here(p):
     '''ImportHere : empty
-           | IDENT
-           | DOT'''
+                  | IDENT
+                  | DOT'''
 
 def p_decl(p):
     '''Declaration : CommonDecl
-                | FuncDecl
-                | NonDeclStmt'''
+                   | FuncDecl
+                   | NonDeclStmt'''
 
 def p_common_decl(p):
     '''CommonDecl : CONST ConstDecl
-                | CONST LPRN ConstDecl OSemi RPRN
-                | CONST LPRN ConstDecl SEMCLN ConstDeclList OSemi RPRN
-                | CONST LPRN RPRN
-                | VAR VarDecl
-                | VAR LPRN VarDeclList OSemi RPRN
-                | VAR LPRN RPRN
-                | TYPE TypeDecl
-                | TYPE LPRN TypeDeclList OSemi RPRN
-                | TYPE LPRN RPRN'''
+                  | CONST LPRN ConstDecl OSemi RPRN
+                  | CONST LPRN ConstDecl SEMCLN ConstDeclList OSemi RPRN
+                  | CONST LPRN RPRN
+                  | VAR VarDecl
+                  | VAR LPRN VarDeclList OSemi RPRN
+                  | VAR LPRN RPRN
+                  | TYPE TypeDecl
+                  | TYPE LPRN TypeDeclList OSemi RPRN
+                  | TYPE LPRN RPRN'''
 
 def p_var_decl(p):
     '''VarDecl   : DeclNameList NType
@@ -459,6 +459,7 @@ def p_expr(p):
             | Expr MUL Expr
             | Expr AND Expr
             | Expr AND_NOT Expr'''
+
 
 def p_uexpr(p):
     '''UExpr : PExpr
