@@ -5,6 +5,12 @@ import ply.yacc as yacc
 from new_lexer import *
 from global_decls import *
 
+root = ScopeTree(None, scopeName="global")
+# global curr_scope
+# print(curr_scope,1)
+curr_scope = root
+# print(curr_scope,2)
+
 precedence = (
     ('right', 'AGN','ADD_AGN','SUB_AGN','MUL_AGN',
         'QUO_AGN','REM_AGN','AND_AGN','OR_AGN',
@@ -74,10 +80,30 @@ def p_var_decl(p):
     '''VarDecl   : DeclNameList NType
                 | DeclNameList NType AGN ExprList
                 | DeclNameList AGN ExprList'''
+    global curr_scope
+    if len(p)==5:
+        if (p[2] != p[4].type):
+            raise_typerror(p)
+        for i in p[1].value:
+            curr_scope.insert(i, type=p[2], is_var=1)
+    elif len(p)==4:
+        for i in p[1].value:
+            curr_scope.insert(i, type=p[3].type, is_var=1)
+    else:
+        for i in p[1].value:
+            curr_scope.insert(i, type=p[2], is_var=1)
 
 def p_const_decl(p):
     '''ConstDecl : DeclNameList NType AGN ExprList
                 | DeclNameList AGN ExprList'''
+    if len(p)==5:
+        if (p[2].value != p[4].type):
+            raise_typerror(p)
+        for i in p[1].value:
+            curr_scope.insert(i, p[2].value, is_var=0)
+    else:
+        for i in p[1].value:
+            curr_scope.insert(i, p[3].type, is_var=0)
 
 def p_const_decl_1(p):
     '''ConstDecl1 : ConstDecl
@@ -171,6 +197,11 @@ def p_ntype(p):
              |	PtrType
              |	DotName
              |	LPRN NType RPRN'''
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = p[2]
+
 
 def p_non_expr_type(p):
     '''NonExprType : FuncType
@@ -253,6 +284,10 @@ def p_func_ret_type(p):
 def p_dot_name(p):
     '''DotName : Name
                 | Name DOT IDENT'''
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = p[1]+"."+p[3]
 
 def p_ocomma(p):
     '''OComma : empty
@@ -305,9 +340,9 @@ def p_literal(p):
         | RUNE_LIT
         | STRING_LIT'''
     if(type(p[1])==int):
-        p[0] = container(int, p[1])
-    else if(type(p[1])==str):
-        p[0] = container(str, p[1])
+        p[0] = container(type="int", value=p[1])
+    elif(type(p[1])==str):
+        p[0] = container(type="string", value=p[1])
 
 
 def p_embed(p):
@@ -332,6 +367,12 @@ def p_type_decl_list(p):
 def p_decl_name_list(p):
     '''DeclNameList : DeclName
              | DeclNameList COMMA DeclName'''
+    if len(p)==2:
+        p[0] = container(value=[p[1].value])
+    else:
+        p[0] = container()
+        p[0].value = p[1].value
+        p[0].value.append(p[3].value)
 
 def p_stmt_list(p):
     '''StmtList : Stmt
@@ -353,9 +394,11 @@ def p_braced_keyval_list(p):
 
 def p_decl_name(p):
     '''DeclName : IDENT'''
+    p[0] = container(value=p[1])
 
 def p_name(p):
     '''Name : IDENT'''
+    p[0] = p[1]
 
 def p_arg_type(p):
     '''ArgType : NameOrType
@@ -485,16 +528,39 @@ def p_empty(p):
 
 def p_start_scope(p):
     '''StartScope : empty'''
+    global curr_scope
     curr_scope = curr_scope.makeChildren()
 
 def p_end_scope(p):
     '''EndScope : empty'''
+    global curr_scope
     curr_scope = curr_scope.parent
 
 def p_error(p):
     print(p)
+    print("syntax error")
+    print(curr_scope.identity)
 
 
-root = ScopeTree("global", None)
-curr_scope = root
+# root = ScopeTree("global", None)
+# # global curr_scope
+# curr_scope = root
 parser = yacc.yacc()
+
+
+with open("factorial.go", "r") as f:
+    data = f.read()
+result = parser.parse(data)
+
+
+def print_scopeTree(node):
+    temp = node
+    print("")
+    print("me:", temp.identity)
+    for i in temp.children:
+        print("child:", i.identity)
+    print("symbolTable:", temp.symbolTable)
+
+    for i in temp.children:
+        print_scopeTree(i)
+print_scopeTree(root)

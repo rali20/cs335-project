@@ -26,18 +26,30 @@ ast_imports = []
 # possible scopes: package, global, functions, ....
 global curr_scope
 curr_scope = None
+global scope_count
+scope_count = 0
+
 class ScopeTree:
     def __init__(self, parent, scopeName=None):
         self.children = []
         self.parent = parent
         self.symbolTable = {} #{"var": [type, size, value, offset]}
-        self.identity = {"name":scopeName}
-    def insert(self, id, type):
-        self.symbolTable[id] = [type]
+        if scopeName is None:
+            global scope_count
+            self.identity = {"name":scope_count}
+            scope_count += 1
+        else:
+            self.identity = {"name":scopeName}
+            scope_count += 1
+
+    def insert(self, id, type, is_var=1):
+        self.symbolTable[id] = [type, is_var]
+
     def makeChildren(self, childName=None):
         child = ScopeTree(self, childName)
         self.children.append(child)
         return child
+
     def lookup(self, id):
         if id in self.symbolTable:
             return self.symbolTable[id]
@@ -46,6 +58,11 @@ class ScopeTree:
 
 
 class container:
-    def __init__(self, Type=None, Value=None):
-        self.type = None
-        self.value = None
+    def __init__(self, type=None, value=None):
+        self.type = type
+        self.value = value
+
+def raise_typerror(p):
+    print("Type error")
+    print("\t p")
+    exit(-1)
