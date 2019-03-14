@@ -22,7 +22,7 @@ class ScopeTree:
         self.symbolTable[id] = {"type":type, "is_var":is_var}
 
     def insert_type(self, new_type, Ntype):
-        self.typeTable["new_type"] = Ntype
+        self.typeTable[new_type] = Ntype
 
     def makeChildren(self, childName=None):
         child = ScopeTree(self, childName)
