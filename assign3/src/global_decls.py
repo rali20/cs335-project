@@ -43,7 +43,7 @@ class ScopeTree:
             scope_count += 1
 
     def insert(self, id, type, is_var=1):
-        self.symbolTable[id] = [type, is_var]
+        self.symbolTable[id] = {"type":type, "is_var":is_var}
 
     def makeChildren(self, childName=None):
         child = ScopeTree(self, childName)
@@ -54,6 +54,8 @@ class ScopeTree:
         if id in self.symbolTable:
             return self.symbolTable[id]
         else:
+            if self.parent is None:
+                raise_general_error("undeclared variable: " + id)
             return self.parent.lookup(id)
 
 
@@ -62,7 +64,17 @@ class container:
         self.type = type
         self.value = value
 
-def raise_typerror(p):
-    print("Type error")
-    print("\t p")
+def raise_typerror(p, s=""):
+    print("Type error", s)
+    print("\t", p)
+    exit(-1)
+
+def raise_out_of_bounds_error(p, s="" ):
+    print("out of bounds error")
+    print(p)
+    print(s)
+    exit(-1)
+
+def raise_general_error(s):
+    print(s)
     exit(-1)
