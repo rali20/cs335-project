@@ -85,7 +85,14 @@ def p_var_decl(p):
         # all types on right must be same as ntype
         for exp in p[4].value:
             if (p[2] != exp.type):
+                # check if it is float = int case
+                if exp.type=="int" and p[2]=="float":
+                    exp.type = "float"
+                    continue
                 raise_typerror(p[1].value,  "type mis-match in var declaration")
+        # incase type is declared to be some basic type e.g type new_int int;
+        if p[2] in curr_scope.typeTable:
+            p[2] = curr_scope.typeTable[p[2]]
         # insert
         for i in p[1].value:
             curr_scope.insert(i, type=p[2], is_var=1)
@@ -98,6 +105,10 @@ def p_var_decl(p):
             curr_scope.insert(p[1].value[i], p[3].value[i].type, is_var=1)
 
     else:
+        # incase type is declared to be some basic type e.g type new_int int;
+        if p[2] in curr_scope.typeTable:
+            p[2] = curr_scope.typeTable[p[2]]
+        # insert
         for i in p[1].value:
             curr_scope.insert(i, type=p[2], is_var=1)
 
@@ -112,7 +123,14 @@ def p_const_decl(p):
         # all types on right must be same as ntype
         for exp in p[4].value:
             if (p[2] != exp.type):
+                # check if it is float = int case
+                if exp.type=="int" and p[2]=="float":
+                    exp.type = "float"
+                    continue
                 raise_typerror(p[1].value, "type mis-match in const declaration")
+        # incase type is declared to be some basic type e.g type new_int int;
+        if p[2] in curr_scope.typeTable:
+            p[2] = curr_scope.typeTable[p[2]]
         # insert all left sides
         for i in p[1].value:
             curr_scope.insert(i, p[2], is_var=0)
@@ -130,6 +148,10 @@ def p_const_decl_1(p):
                 | DeclNameList'''
     global curr_scope
     if len(p)==3:
+        # incase type is declared to be some basic type e.g type new_int int;
+        if p[2] in curr_scope.typeTable:
+            p[2] = curr_scope.typeTable[p[2]]
+        # insert
         for i in p[1].value:
             curr_scope.insert(i, p[2], is_var=0)
 
@@ -140,6 +162,8 @@ def p_type_decl_name(p):
 def p_type_decl(p):
     '''TypeDecl : TypeDeclName NType'''
     global curr_scope
+    if p[2] in curr_scope.typeTable:
+        p[2] = curr_scope.typeTable[p[2]]
     curr_scope.insert_type(p[1], p[2])
     # p[0] = container()
     # p[0].value = p[1]
@@ -563,8 +587,12 @@ def p_expr(p):
     if len(p)==4:
         p[0] = container()
         if p[1].type != p[3].type:
-            raise_typerror(p)
-            exit(-1)
+            # check if it is float = int case
+            if (p[1].type=="float" or p[3].type=="float") and (p[1].type=="int" or p[3].type=="int"):
+                p[1].type = "float"
+                p[3].type = "float"
+            else:
+                raise_typerror(p, "type error in expression operations")
         p[0].type = p[1].type
         p[0].value = str(p[1].value) + p[2] + str(p[3].value)
     else:
