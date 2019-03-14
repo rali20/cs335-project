@@ -40,7 +40,7 @@ def p_package_clause(p):
 
 def p_imports(p):
     '''Imports    : empty
-                | Imports Import SEMCLN'''
+                  | Imports Import SEMCLN'''
 
 def p_import(p):
     '''Import     : IMPORT ImportStmt
@@ -52,29 +52,29 @@ def p_import_stmt(p):
 
 def p_import_stmt_list(p):
     '''ImportStmtList : ImportStmt
-               | ImportStmtList SEMCLN ImportStmt'''
+                      | ImportStmtList SEMCLN ImportStmt'''
 
 def p_import_here(p):
     '''ImportHere : empty
-           | IDENT
-           | DOT'''
+                  | IDENT
+                  | DOT'''
 
 def p_decl(p):
     '''Declaration : CommonDecl
-                | FuncDecl
-                | NonDeclStmt'''
+                   | FuncDecl
+                   | NonDeclStmt'''
 
 def p_common_decl(p):
     '''CommonDecl : CONST ConstDecl
-                | CONST LPRN ConstDecl OSemi RPRN
-                | CONST LPRN ConstDecl SEMCLN ConstDeclList OSemi RPRN
-                | CONST LPRN RPRN
-                | VAR VarDecl
-                | VAR LPRN VarDeclList OSemi RPRN
-                | VAR LPRN RPRN
-                | TYPE TypeDecl
-                | TYPE LPRN TypeDeclList OSemi RPRN
-                | TYPE LPRN RPRN'''
+                  | CONST LPRN ConstDecl OSemi RPRN
+                  | CONST LPRN ConstDecl SEMCLN ConstDeclList OSemi RPRN
+                  | CONST LPRN RPRN
+                  | VAR VarDecl
+                  | VAR LPRN VarDeclList OSemi RPRN
+                  | VAR LPRN RPRN
+                  | TYPE TypeDecl
+                  | TYPE LPRN TypeDeclList OSemi RPRN
+                  | TYPE LPRN RPRN'''
 
 def p_var_decl(p):
     '''VarDecl   : DeclNameList NType
@@ -175,23 +175,23 @@ def p_inc_dec_op(p):
 
 def p_simple_stmt(p):
     '''SimpleStmt : Expr
-                | Expr QuickAssignOp Expr
+                | Expr ShortAgnOp Expr
                 | ExprList AGN ExprList
                 | ExprList DEFN ExprList
                 | Expr IncDecOp'''
 
 def p_quick_assign_op(p):
-    '''QuickAssignOp : ADD_AGN
-                    | SUB_AGN
-                    | MUL_AGN
-                    | QUO_AGN
-                    | REM_AGN
-                    | AND_AGN
-                    | OR_AGN
-                    | XOR_AGN
-                    | SHL_AGN
-                    | SHR_AGN
-                    | AND_NOT_AGN'''
+    '''ShortAgnOp : ADD_AGN
+                | SUB_AGN
+                | MUL_AGN
+                | QUO_AGN
+                | REM_AGN
+                | AND_AGN
+                | OR_AGN
+                | XOR_AGN
+                | SHL_AGN
+                | SHR_AGN
+                | AND_NOT_AGN'''
 
 def p_case(p):
     '''Case : CASE ExprList COLON
@@ -597,6 +597,7 @@ def p_expr(p):
         p[0].value = str(p[1].value) + p[2] + str(p[3].value)
     else:
         p[0] = p[1]
+
 
 def p_uexpr(p):
     '''UExpr : PExpr
