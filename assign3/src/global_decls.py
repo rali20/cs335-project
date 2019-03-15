@@ -4,12 +4,17 @@ curr_scope = None
 global scope_count
 scope_count = 0
 
+global temp_count
+temp_count = 0
+global label_count
+label_count = 0
+
 class ScopeTree:
     def __init__(self, parent, scopeName=None):
         self.children = []
         self.parent = parent
         self.symbolTable = {} #{"var": [type, size, value, offset]}
-        self.typeTable = {}
+        self.typeTable = self.parent.typeTable if parent is not None else {}
         if scopeName is None:
             global scope_count
             self.identity = {"name":scope_count}
@@ -18,8 +23,8 @@ class ScopeTree:
             self.identity = {"name":scopeName}
             scope_count += 1
 
-    def insert(self, id, type, is_var=1):
-        self.symbolTable[id] = {"type":type, "is_var":is_var}
+    def insert(self, id, type, is_var=1, arg_list=None, size=None, ret_type=None):
+        self.symbolTable[id] = {"type":type, "is_var":is_var, "arg_list":arg_list, "size":size, "ret_type":ret_type}
 
     def insert_type(self, new_type, Ntype):
         self.typeTable[new_type] = Ntype
@@ -37,11 +42,17 @@ class ScopeTree:
                 raise_general_error("undeclared variable: " + id)
             return self.parent.lookup(id)
 
+    def new_temp():
+        temp_count += 1
+        return "$"+str(temp_count)
 
-class container:
-    def __init__(self, Type=None, Value=None):
-        self.type = None
-        self.value = None
+    def new_label():
+        label_count += 1
+        return "#"+str(label_count)
+# class container:
+#     def __init__(self, type=None, value=None):
+#         self.type = value
+#         self.value = type
 
 class Builtin(object):
     def __init__(self,name,width=None):
@@ -50,7 +61,7 @@ class Builtin(object):
         self.base = None
     def __len__(self):
         return self.width
-    
+
 class Int(Builtin):
     def __init__(self):
         super().__init__("int",4)
@@ -195,3 +206,24 @@ def raise_out_of_bounds_error(p, s="" ):
 def raise_general_error(s):
     print(s)
     exit(-1)
+
+
+def extract_package(package_name):
+    return package_name.split("/")[-1]
+
+
+def print_scopeTree(node):
+    temp = node
+    print("")
+    print("me:", temp.identity)
+    for i in temp.children:
+        print("child:", i.identity)
+    print("symbolTable:")
+    for var, val in temp.symbolTable.items():
+        print(var, val["type"], val["is_var"])
+    print("TypeTable:")
+    for new_type, Ntype in temp.typeTable.items():
+        print(new_type, Ntype)
+
+    for i in temp.children:
+        print_scopeTree(i)

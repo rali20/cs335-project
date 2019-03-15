@@ -11,6 +11,22 @@ root = ScopeTree(None, scopeName="global")
 curr_scope = root
 # print(curr_scope,2)
 
+class container(object):
+    def __init__(self,type=None,value=None):
+        self.code = list()
+        self.place = None
+        self.extra = dict()
+        self.type = type
+        self.value = value
+
+class sourcefile(object):
+    def __init__(self):
+        self.code = list()
+        self.package = str()
+    # for each import - { package:package_name,as:local_name,path:package_path }
+        self.imports = list()
+
+
 precedence = (
     ('right', 'AGN','ADD_AGN','SUB_AGN','MUL_AGN',
         'QUO_AGN','REM_AGN','AND_AGN','OR_AGN',
@@ -31,38 +47,65 @@ precedence = (
 
 def p_start(p):
     '''start : SourceFile'''
+    p[0] = p[1]
+    global source_root
+    source_root = p[0]
 
 def p_source_file(p):
     '''SourceFile    : PackageClause Imports DeclList'''
+    p[0] = sourcefile()
+    p[0].code = p[3].code
+    p[0].imports = p[2]
+    p[0].package = p[1]
 
 def p_package_clause(p):
     '''PackageClause : PACKAGE IDENT SEMCLN'''
+    p[0] = str(p[2])
 
 def p_imports(p):
     '''Imports    : empty
                   | Imports Import SEMCLN'''
+    if len(p) == 2 :
+        p[0] = []
+    else :
+        p[0] = p[1] + p[2]
+
 
 def p_import(p):
     '''Import     : IMPORT ImportStmt
                   | IMPORT LPRN ImportStmtList OSemi RPRN
                   | IMPORT LPRN RPRN'''
+    if len(p) == 2 :
+        p[0] = p[2]
+    elif len(p) == 3 :
+        p[0] = []
+    else :
+        p[0] = p[3]
 
 def p_import_stmt(p):
     '''ImportStmt : ImportHere STRING_LIT'''
+    package = extract_package(p[2])
+    p[0] = [dict({"package":package,"as":p[1],"path":p[2]})]
 
 def p_import_stmt_list(p):
     '''ImportStmtList : ImportStmt
                       | ImportStmtList SEMCLN ImportStmt'''
+    if len(p) == 2:
+        p[0] = p[1]
+    else :
+        p[0] = p[1] + p[3]
 
 def p_import_here(p):
     '''ImportHere : empty
                   | IDENT
                   | DOT'''
+    p[0] = p[1]
 
 def p_decl(p):
     '''Declaration : CommonDecl
                    | FuncDecl
                    | NonDeclStmt'''
+    p[0] = p[1]
 
 def p_common_decl(p):
     '''CommonDecl : CONST ConstDecl
@@ -75,11 +118,12 @@ def p_common_decl(p):
                   | TYPE TypeDecl
                   | TYPE LPRN TypeDeclList OSemi RPRN
                   | TYPE LPRN RPRN'''
+    p[0] = container()
 
 def p_var_decl(p):
-    '''VarDecl   : DeclNameList NType
-                | DeclNameList NType AGN ExprList
-                | DeclNameList AGN ExprList'''
+    '''VarDecl : DeclNameList NType
+               | DeclNameList NType AGN ExprList
+               | DeclNameList AGN ExprList'''
     global curr_scope
     if len(p)==5:
         # all types on right must be same as ntype
@@ -199,6 +243,7 @@ def p_case(p):
 
 def p_compound_stmt(p):
     '''CompoundStmt : LCURL StartScope StmtList EndScope RCURL'''
+    p[0] = p[3]
 
 def p_case_block(p):
     '''CaseBlock : Case StmtList'''
@@ -278,17 +323,32 @@ def p_interface_type(p):
 def p_func_decl(p):
     '''FuncDecl : FUNC IDENT StartScope ArgList FuncRes FuncBody EndScope
                 | FUNC LPRN_OR StartScope OArgTypeListOComma RPRN_OR IDENT ArgList FuncRes FuncBody EndScope'''
+    global curr_scope
+    if len(p) == 8:
+        curr_scope.insert(p[1], type="function", arg_list=p[4], ret_type=p[5])
+        # p[4] is a container() object, it's valur attribute contains ids while type contains type of those ids
+        # for id,type in zip(p[4].value, p[4].type):
+        #     curr_scope.insert(id, type=type, is_var=1)
+        p[0] = p[6]
+    else :
+        p[0] = p[9]
 
 def p_func_body(p):
     '''FuncBody : empty
                 | LCURL StmtList RCURL'''
+    if len(p) == 2 :
+        p[0] = container()
+    else :
+        p[0] = p[2]
 
 def p_func_type(p):
     '''FuncType : FUNC ArgList FuncRes'''
 
 def p_arg_list(p):
     '''ArgList : LPRN OArgTypeListOComma RPRN'''
-
+    for id,type in zip(p[2].value, p[2].type):
+        curr_scope.insert(id, type=type, is_var=1)
+    p[0] = p[2]
 
 def p_func_res(p):
     '''FuncRes : empty
@@ -414,6 +474,11 @@ def p_embed(p):
 def p_decl_list(p):
     '''DeclList : empty
          | DeclList Declaration SEMCLN'''
+    if len(p) == 2:
+        p[0] = container()
+    else :
+        p[0] =  p[1]
+        p[0].code += p[2].code
 
 def p_var_decl_list(p):
     '''VarDeclList : VarDecl
@@ -443,7 +508,12 @@ def p_decl_name_list(p):
 
 def p_stmt_list(p):
     '''StmtList : Stmt
-         | StmtList SEMCLN Stmt'''
+                | StmtList SEMCLN Stmt'''
+    if len(p) == 2:
+        p[0] = p[1]
+    else :
+        p[0] = p[1]
+        p[0].code += p[3].code
 
 def p_new_name_list(p):
     '''NewNameList : NewName
@@ -472,34 +542,84 @@ def p_arg_type(p):
         | IDENT NameOrType
         | IDENT DotDotDot
         | DotDotDot'''
+    p[0] = container()
+    if len(p)==2: #assuming the first only rule
+        p[0].value = None
+        p[0].type = p[1]
+    else:  #assuming only thr 2nd rule:
+        p[0].value = p[1]
+        p[0].type = p[2]
+    # not taking care of last two rules
+
 
 def p_arg_type_list(p):
     '''ArgTypeList : ArgType
                    | ArgTypeList COMMA ArgType'''
+    if len(p)==2:
+        p[0] = container()
+        p[0].value = [p[1].value]
+        p[0].type = [p[1].type]
+    else:
+        p[0] = p[1]
+        p[0].value.append(p[3].value)
+        p[0].type.append(p[3].type)
 
 
 def p_oarg_type_list_ocomma(p):
     '''OArgTypeListOComma : empty
                    | ArgTypeList OComma'''
+    p[0] = container()
+    if len(p)==2:
+        p[0].value = []
+        p[0].type = []
+    else:
+        p[0] = p[1]
 
 def p_stmt(p):
     '''Stmt : empty
             | CompoundStmt
             | CommonDecl
             | NonDeclStmt'''
+    if p[1] is None :
+        p[0] = container()
+    else :
+        p[0] = p[1]
 
 def p_non_decl_stmt(p):
     '''NonDeclStmt : SimpleStmt
-                | ForStmt
-                | SwitchStmt
-                | IfStmt
-                | LabelName COLON Stmt
-                | FALLTHROUGH
-                | BREAK ONewName
-                | CONTINUE ONewName
-                | DEFER Expr
-                | GOTO NewName
-                | RETURN OExprList'''
+                   | ForStmt
+                   | SwitchStmt
+                   | IfStmt
+                   | FALLTHROUGH
+                   | BREAK ONewName
+                   | CONTINUE ONewName
+                   | DEFER Expr
+                   | GOTO NewName
+                   | RETURN OExprList
+                   | LabelName COLON Stmt'''
+    if len(p) == 2:
+        if p[1] == "fallthrough" :
+            # not implemented
+            pass
+        else :
+            p[0] = p[1]
+    elif len(p) == 3:
+        if p[1] == "break":
+            pass
+        elif p[1] == "continue":
+            pass
+        elif p[1] == "defer":
+            pass
+        elif p[1] == "goto":
+            pass
+        else :
+            # return
+            pass
+    else :
+        pass
+
+
+
 
 def p_dot_dot_dot(p):
     '''DotDotDot : ELPS
@@ -559,6 +679,7 @@ def p_exp_or_type(p):
 
 def p_name_or_type(p):
     '''NameOrType : NType'''
+    p[0] = p[1]
 
 def p_switch_stmt(p):
     '''SwitchStmt : SWITCH StartScope IfHeader LCURL CaseBlockList RCURL EndScope'''
@@ -584,7 +705,10 @@ def p_expr(p):
             | Expr MUL Expr
             | Expr AND Expr
             | Expr AND_NOT Expr'''
-    if len(p)==4:
+    if len(p) == 2 :
+        p[0] = p[1]
+    else:
+    #     p[0]
         p[0] = container()
         if p[1].type != p[3].type:
             # check if it is float = int case
@@ -595,8 +719,6 @@ def p_expr(p):
                 raise_typerror(p, "type error in expression operations")
         p[0].type = p[1].type
         p[0].value = str(p[1].value) + p[2] + str(p[3].value)
-    else:
-        p[0] = p[1]
 
 
 def p_uexpr(p):
@@ -643,6 +765,7 @@ def p_pseudocall(p):
 
 def p_empty(p):
     '''empty : '''
+    p[0] = None
 
 def p_start_scope(p):
     '''StartScope : empty'''
@@ -672,19 +795,4 @@ with open("factorial.go", "r") as f:
 result = parser.parse(data)
 
 
-def print_scopeTree(node):
-    temp = node
-    print("")
-    print("me:", temp.identity)
-    for i in temp.children:
-        print("child:", i.identity)
-    print("symbolTable:")
-    for var, val in temp.symbolTable.items():
-        print(var, val["type"], val["is_var"])
-    print("TypeTable:")
-    for new_type, Ntype in temp.typeTable.items():
-        print(new_type, Ntype)
-
-    for i in temp.children:
-        print_scopeTree(i)
 print_scopeTree(root)
