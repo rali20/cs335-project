@@ -43,6 +43,51 @@ class container:
         self.type = None
         self.value = None
 
+class Builtin(object):
+    def __init__(self,name,width=None):
+        self.name = name
+        self.width = width
+        self.base = None
+    def __len__(self):
+        return self.width
+    
+class Int(Builtin):
+    def __init__(self):
+        super().__init__("int",4)
+
+class Float(Builtin):
+    def __init__(self):
+        super().__init__("float",8)
+
+class String(Builtin):
+    def __init__(self):
+        super().__init__("string")
+
+class Byte(Builtin):
+    def __init__(self):
+        super().__init__("byte",1)
+
+class Void(Builtin):
+     def __init__(self):
+        super().__init__("void")
+
+class Error(Builtin):
+     def __init__(self):
+        super().__init__("error")
+
+typeOp = set({"arr","struct","ptr","func","interface","slice","map"})
+class Derived(object):
+    def __init__(self,op,base,arg=None):
+        self.arg = dict(arg)
+        if op in typeOp:
+            self.op = op
+        if isinstance(base,(Derived,Builtin)) and (not isinstance(base,(Error,Void))) :
+            self.base = base
+            if op == "arr" :
+                self.name = "arr" + base.name
+            elif op == "struct" :
+                self.name = "struct" + arg["name"]
+
 class Tac(object):
     def __init__(self, type=None, op=None, arg1=None, arg2=None, dst=None):
         self.type = type
