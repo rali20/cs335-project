@@ -39,14 +39,17 @@ class ScopeTree:
             return self.symbolTable[id]
         else:
             if self.parent is None:
-                raise_general_error("undeclared variable: " + id)
+                return None
+                # raise_general_error("undeclared variable: " + id)
             return self.parent.lookup(id)
 
-    def new_temp():
+    def new_temp(self):
+        global temp_count
         temp_count += 1
         return "$"+str(temp_count)
 
-    def new_label():
+    def new_label(self):
+        global label_count
         label_count += 1
         return "#"+str(label_count)
 
@@ -112,9 +115,9 @@ class Derived(object):
             elif op == "struct" :
                 self.name = "struct" + arg["name"]
 # i am saying use attributes for array - base, just like for func type
-# curr_scope.symbolTable["any_array_ident"] = {"type":"array"}? Is that what you wanna say?
+
 class Tac(object):
-    def __init__(self, type=None, op=None, arg1=None, arg2=None, dst=None):
+    def __init__(self, op=None, arg1=None, arg2=None, dst=None, type=None):
         self.type = type
         self.op = op
         self.arg1 = arg1
@@ -123,37 +126,53 @@ class Tac(object):
 
 class LBL(Tac):
     '''Label Operation -> label:'''
-    pass
+    def __init__(self, arg1, type="LBL"):
+        super().__init__(type,arg1=arg1)
+
+    def __str__(self):
+        return " ".join([str(self.arg1),":"])
 
 class BOP(Tac):
     '''Binary Operation -> dst = arg1 op arg2'''
-    def __init__(self, type, op, arg1, arg2, dst):
-        super().__init__(type,op,arg1,arg2,dst)
+    def __init__(self, op, arg1, arg2, dst, type="BOP"):
+        super().__init__(op=op,arg1=arg1,arg2=arg2,dst=dst,type=type)
+    def __str__(self):
+        return " ".join([self.dst,"=",str(self.arg1),self.op,str(self.arg2)])
 
 class UOP(Tac):
     '''Unary Operation -> dst = op arg1'''
-    def __init__(self,type,op,arg1):
-        super.__init__(type,op,arg1)
+    def __init__(self,op,arg1,type="UOP"):
+        super.__init__(op=op,arg1=arg1,type=type)
+    def __str__(self):
+        return " ".join([self.dst,"=",self.op,str(self.arg1)])
 
 class ASN(Tac):
     '''Assignment Operation -> dst = arg1'''
-    def __init__(self,type,arg1,dst):
-        super.__init__(type,arg1=arg1,dst=dst)
+    def __init__(self,arg1,dst,type="ASN"):
+        super.__init__(arg1=arg1,dst=dst,type=type)
+    def __str__(self):
+        return " ".join([self.dst,"=",str(self.arg1)])
 
 class JMP(Tac):
     '''Jump Operation -> goto dst'''
-    def __init__(self,type,dst):
-        super.__init__(type,dst=dst)
+    def __init__(self,dst,type="JMP"):
+        super.__init__(dst=dst,type=type)
+    def __str__(self):
+        return " ".join(["goto",self.dst])
 
 class JIF(Tac):
     '''Jump If -> if arg1 goto dst'''
-    def __init__(self,type,arg1,dst):
-        super.__init__(type,arg1=arg1,dst=dst)
+    def __init__(self,arg1,dst,type="JIF"):
+        super.__init__(arg1=arg1,dst=dst,type=type)
+    def __str__(self):
+        return " ".join(["if",str(self.arg1),"goto",self.dst])
 
 class CBR(Tac):
     '''Conditional Branch -> if arg1 op arg2 goto dst'''
-    def __init__(self, type, op, arg1, arg2, dst):
-        super().__init__(type,op,arg1,arg2,dst)
+    def __init__(self, op, arg1, arg2, dst, type="CBR"):
+        super().__init__(op=op,arg1=arg1,arg2=arg2,dst=dst,type=type)
+    def __str__(self):
+        return " ".join(["if",str(self.arg1),self.op,str(self.arg2),"goto",self.dst])
 
 # class BOP(Tac):
 #     '''Binary Operation
@@ -226,7 +245,7 @@ def extract_package(package_name):
     return package_name.split("/")[-1]
 
 
-def print_scopeTree(node):
+def print_scopeTree(node,source_root):
     temp = node
     print("")
     print("me:", temp.identity)
@@ -240,4 +259,8 @@ def print_scopeTree(node):
         print(new_type, Ntype)
 
     for i in temp.children:
-        print_scopeTree(i)
+        print_scopeTree(i,source_root)
+
+    print("-"*80)
+    for line in source_root.code :
+        print(line)

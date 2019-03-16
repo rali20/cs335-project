@@ -1,3 +1,8 @@
+# Keep in Mind: if any variable.type == container(), then find it's type by container().type
+
+
+
+
 import sys
 import os
 import ply.yacc as yacc
@@ -130,7 +135,7 @@ def p_var_decl(p):
         if len(p[1].value) != len(p[3].value):
             raise_out_of_bounds_error(p[1].value + p[3].value , "different number of variables and expressions")
         for i in range( len(p[1].value) ):
-            curr_scope.insert(p[1].value[i], p[3].value[i].type, is_var=1)
+            curr_scope.insert(p[1].value[i], type=p[3].value[i].type, is_var=1)
 
     else:
         # incase type is declared to be some basic type e.g type new_int int;
@@ -139,6 +144,7 @@ def p_var_decl(p):
         # insert
         for i in p[1].value:
             curr_scope.insert(i, type=p[2], is_var=1)
+
 
 def p_const_decl(p):
     '''ConstDecl : DeclNameList NType AGN ExprList
@@ -202,26 +208,68 @@ def p_type_decl(p):
 def p_inc_dec_op(p):
     '''IncDecOp : INC
                 | DEC'''
+    p[0] = p[1]
 
 def p_simple_stmt(p):
     '''SimpleStmt : Expr
-                | Expr ShortAgnOp Expr
-                | ExprList AGN ExprList
-                | ExprList DEFN ExprList
-                | Expr IncDecOp'''
+                  | Expr IncDecOp
+                  | ExprList AGN ExprList
+                  | Expr ShortAgnOp Expr
+                  | ExprList DEFN ExprList'''
+    # a,b = 1
+    # a,b,c = 2,3,2
+    # check if const is changed
+    global curr_scope
+    if len(p)==2:
+        p[0] = p[1]
+    elif len(p)==3:
+        p[0] = p[1]
+        new_place = curr_scope.new_temp()
+        p[0].value = new_place
+        if ((p[1].type == "int") or (p[1].type == "float")) :
+            arg2 = {"int":1,"float":1.0}[p[1].type]
+            p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op=p[2][0],arg2=arg2))
+            p[0].type = p[1].type
+        else :
+            raise_typerror(p, "in expression : "
+                + p[2] + " operator takes int or float operands only" )
+
+    elif len(p)==4:
+        if p[2] == ":=" :
+            p[0] = p[3]
+            if len(p[1].value) != len(p[3].value):
+                raise_out_of_bounds_error(p[1].value+p[3].value,
+                    "error in short-Assignment/Declaration")
+            for i in range(len(p[1].value)):
+                # checked if left is IDENTIFIER
+                if type(p[1].value[i]) != container :
+                    curr_scope.insert(p[1].value[i].value, type=p[3].value[i].type, is_var=1)
+
+        elif p[2] == "=" :
+            if ( len(p[1].value) == len(p[3].value) ) or (len(p[3].value)==1):
+                for i in range(len(p[1].value)):
+                    if p[1].value[i].type != p[3].value[i].type:
+                        raise_typerror(p[1].value[i].value+" "+p[3].value[i].value, "type mismatch")
+
+            else :
+                raise_out_of_bounds_error(p[1].value+p[3].value,
+                    "error in short-Assignment/Declaration")
+
+
+
 
 def p_quick_assign_op(p):
     '''ShortAgnOp : ADD_AGN
-                | SUB_AGN
-                | MUL_AGN
-                | QUO_AGN
-                | REM_AGN
-                | AND_AGN
-                | OR_AGN
-                | XOR_AGN
-                | SHL_AGN
-                | SHR_AGN
-                | AND_NOT_AGN'''
+                  | SUB_AGN
+                  | MUL_AGN
+                  | QUO_AGN
+                  | REM_AGN
+                  | AND_AGN
+                  | OR_AGN
+                  | XOR_AGN
+                  | SHL_AGN
+                  | SHR_AGN
+                  | AND_NOT_AGN'''
 
 def p_case(p):
     '''Case : CASE ExprList COLON
@@ -306,15 +354,15 @@ def p_other_type(p):
         p[0].type = "array"
         p[0].extra["length"] = p[2].value
         p[0].extra["base"] = p[4]
-    # elif len(p)==6:
-    #     p[0] = container()
+    elif len(p)==2:
+        p[0] = p[1]
 
         # what is MAP?
 
 def p_struct_type(p):
     '''StructType : STRUCT LCURL StructDeclList OSemi RCURL
            | STRUCT LCURL RCURL'''
-    p[0] = container()
+    p[0] = container(type="structure")
     if len(p)==8:
         # StructDeclList is a dictionary {ident:Ntype}
         p[0].extra["fields"] = p[3]
@@ -415,6 +463,7 @@ def p_label_name(p):
 
 def p_new_name(p):
     '''NewName : IDENT'''
+    p[0] = p[1]
 
 def p_ptr_type(p):
     '''PtrType : MUL NType'''
@@ -501,6 +550,7 @@ def p_literal(p):
                | STRING_LIT'''
     if type(p[1]) == int:
         p[0] = container(type="int", value=p[1])
+        # print("INTEGER_LIT")
     elif type(p[1]) == float:
         p[0] = container(type="float", value=p[1])
     elif type(p[1]) == complex:
@@ -546,8 +596,7 @@ def p_decl_name_list(p):
     if len(p)==2:
         p[0] = container(value=[p[1].value])
     else:
-        p[0] = container()
-        p[0].value = p[1].value
+        p[0] = p[1]
         p[0].value.append(p[3].value)
 
 def p_stmt_list(p):
@@ -562,6 +611,11 @@ def p_stmt_list(p):
 def p_new_name_list(p):
     '''NewNameList : NewName
             | NewNameList COMMA NewName'''
+    if len(p)==2:
+        p[0] = [p[1]]
+    else:
+        p[0] = p[1]
+        p[0].append(p[3])
 
 def p_keyval_list(p):
     '''KeyvalList : Keyval
@@ -697,6 +751,8 @@ def p_pexp_no_paren(p):
         if str(p.slice[1]) == "Literal":
             p[0] = p[1]
         elif str(p.slice[1]) == "Name":
+            if curr_scope.lookup(p[1]) is None:
+                raise_general_error("undeclared variable: " + p[1])
             p[0] = container()
             p[0].value = p[1] #name is a string
             p[0].type = curr_scope.lookup(p[1])["type"]
@@ -710,14 +766,6 @@ def p_pexp_no_paren(p):
             else :
                 pass
 
-
-
-
-
-# def p_exp_no_paren2(p):
-#     '''PExprNoParen : Literal'''
-#     # literal is a container with value and type
-#     p[0] = p[1]
 
 def p_conv_type(p):
     '''ConvType : FuncType
@@ -765,6 +813,7 @@ def p_expr(p):
             | Expr MUL Expr
             | Expr AND Expr
             | Expr AND_NOT Expr'''
+    # check if undeclared variable is used
     global curr_scope
     if len(p) == 2 :
         p[0] = p[1]
@@ -783,9 +832,11 @@ def p_expr(p):
                     + p[2] + " operator takes int operands only" )
         # int or float
         else : #p[2] in set({"+","-","*","/","<",">",">=","<=","!=","=="}):
-            if (p[1].type == "int" and p[3].type == "int") or (p[1].type == "float" and p[3].type == "float") :
+            if ((p[1].type == "int" and p[3].type == "int")
+                    or (p[1].type == "float" and p[3].type == "float")) :
                 p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op=p[2],arg2=p[3].value))
                 p[0].type = p[1].type
+                # print("BOP:int only",p[0].code[0])
             elif p[1].type == "int" and p[1].type == "float" :
                 new_place1 = curr_scope.new_temp()
                 p[0].code.append(UOP(dst=new_place1,op="inttofloat",arg1=p[1].value))
@@ -894,4 +945,4 @@ with open("factorial.go", "r") as f:
 result = parser.parse(data)
 
 
-print_scopeTree(root)
+print_scopeTree(root,source_root)
