@@ -201,7 +201,9 @@ def p_const_decl_1(p):
 
 def p_type_decl_name(p):
     '''TypeDeclName : IDENT'''
+    # print(str(p.slice[0])=="TypeDeclName")
     p[0] = p[1]
+    # print(p.__dict__)
 
 def p_type_decl(p):
     '''TypeDecl : TypeDeclName NType'''
@@ -295,6 +297,8 @@ def p_ntype(p):
              |	PtrType
              |	DotName
              |	LPRN NType RPRN'''
+    # Functype is a container() object, with type=function, extra containing arg_list and ret_type
+    # ptrType is a container() object, with type="pointer", extra containing base
     if len(p)==2:
         p[0] = p[1]
     else:
@@ -311,10 +315,27 @@ def p_other_type(p):
           | MAP LSQR NType RSQR NType
           | StructType
           | InterfaceType'''
+    # implement array type
+    # currently ignoring last two rules
+    if len(p)==5:
+        p[0] = container()
+        p[0].type = "array"
+        p[0].extra["length"] = p[2].value
+        p[0].extra["base"] = p[4]
+    # elif len(p)==6:
+    #     p[0] = container()
+
+        # what is MAP?
 
 def p_struct_type(p):
     '''StructType : STRUCT LCURL StructDeclList OSemi RCURL
            | STRUCT LCURL RCURL'''
+    p[0] = container()
+    if len(p)==8:
+        # StructDeclList is a dictionary {ident:Ntype}
+        p[0].extra["arg_list"] = p[3]
+
+
 
 def p_interface_type(p):
     '''InterfaceType : INTERFACE LCURL InterfaceDeclList OSemi RCURL
@@ -325,7 +346,7 @@ def p_func_decl(p):
                 | FUNC LPRN_OR StartScope OArgTypeListOComma RPRN_OR IDENT ArgList FuncRes FuncBody EndScope'''
     global curr_scope
     if len(p) == 8:
-        curr_scope.insert(p[1], type="function", arg_list=p[4], ret_type=p[5])
+        curr_scope.insert(p[2], type="function", arg_list=p[4], ret_type=p[5])
         # p[4] is a container() object, it's valur attribute contains ids while type contains type of those ids
         # for id,type in zip(p[4].value, p[4].type):
         #     curr_scope.insert(id, type=type, is_var=1)
@@ -343,6 +364,12 @@ def p_func_body(p):
 
 def p_func_type(p):
     '''FuncType : FUNC ArgList FuncRes'''
+    # Functype is a container() object, with type=function, extra containing arg_list and ret_type
+    p[0] = container()
+    p[0].type = "function"
+    p[0].extra["arg_list"] = p[2]
+    p[0].extra["ret_type"] = p[3]
+
 
 def p_arg_list(p):
     '''ArgList : LPRN OArgTypeListOComma RPRN'''
@@ -354,10 +381,23 @@ def p_func_res(p):
     '''FuncRes : empty
                | FuncRetType
                | LPRN_OR OArgTypeListOComma RPRN_OR'''
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = p[2]
 
 def p_struct_decl_list(p):
     '''StructDeclList : StructDecl
                     | StructDeclList SEMCLN StructDecl'''
+    # StructDeclList is a dictionary {ident:Ntype}
+    if len(p)==2:
+        p[0] = {}
+        for i in p[1].value:
+            p[0][i] = p[1].type
+    else:
+        p[0] = p[1]
+        for i in p[3].value:
+            p[0][i] = p[3].type
 
 def p_interface_decl_list(p):
     '''InterfaceDeclList : InterfaceDecl
@@ -370,6 +410,13 @@ def p_struct_decl(p):
                     | MUL Embed OTag
                     | LPRN MUL Embed RPRN OTag
                     | MUL LPRN Embed RPRN OTag'''
+    # consider only the first rule
+    if len(p)==4:
+        # NewNameList is a list
+        p[0] = container()
+        p[0].value = p[1]
+        p[0].type = p[2]
+
 
 def p_interface_decl(p):
     '''InterfaceDecl : NewName InDecl
@@ -387,17 +434,25 @@ def p_new_name(p):
 
 def p_ptr_type(p):
     '''PtrType : MUL NType'''
+    # ptrType is a onject
+    p[0] = container()
+    p[0].type = "pointer"
+    p[0].extra["base"] = p[2]
+    p[0].value = "*"+p[2]
 
 def p_func_ret_type(p):
     '''FuncRetType : FuncType
                     | OtherType
                     | PtrType
                     | DotName'''
-
+    # Functype is a container() object, with type=function, extra containing arg_list and ret_type
+    # dotname is a identifier (string)
+    #
+    p[0] = p[1]
 def p_dot_name(p):
     '''DotName : Name
                 | Name DOT IDENT'''
-    #2nd rule's type is not being taken care of
+    #2nd rule's type is not being taken care of for lookup stuff
     if len(p)==2:
         p[0] = p[1]
     else:
@@ -454,18 +509,23 @@ def p_otag(p):
 
 def p_literal(p):
     '''Literal : INTEGER_LIT
-        | OCTAL_LIT
-        | HEX_LIT
-        | IMAGINARY_LIT
-        | FLOAT_LIT
-        | RUNE_LIT
-        | STRING_LIT'''
-    if(type(p[1])==int):
+               | OCTAL_LIT
+               | HEX_LIT
+               | IMAGINARY_LIT
+               | FLOAT_LIT
+               | RUNE_LIT
+               | STRING_LIT'''
+    if type(p[1]) == int:
         p[0] = container(type="int", value=p[1])
-    elif(type(p[1])==float):
+    elif type(p[1]) == float:
         p[0] = container(type="float", value=p[1])
-    elif(type(p[1])==str):
+    elif type(p[1]) == complex:
+        p[0] = container(type="complex", value=p[1])
+    elif p.slice[1].type == "STRING_LIT":
         p[0] = container(type="string", value=p[1])
+    else:
+        # RUNE_LIT not implemented
+        pass
 
 
 def p_embed(p):
@@ -636,28 +696,44 @@ def p_pexpr(p):
 
 def p_pexp_no_paren(p):
     '''PExprNoParen : Name
-                    | PExpr DOT IDENT
-                    | PExpr DOT LPRN ExprOrType RPRN
-                    | PExpr DOT LPRN TYPE RPRN
-                    | PExpr LSQR Expr RSQR
-                    | PExpr LSQR OExpr COLON OExpr RSQR
-                    | PExpr LSQR OExpr COLON OExpr COLON OExpr RSQR
-                    | PseudoCall
-                    | ConvType LPRN Expr OComma RPRN
-                    | CompType LCURL BracedKeyvalList RCURL
+                    | Literal
                     | FuncLiteral
-                    | ForCompExpr'''
+                    | PseudoCall
+                    | ForCompExpr
+                    | PExpr DOT IDENT
+                    | PExpr LSQR Expr RSQR
+                    | CompType LCURL BracedKeyvalList RCURL
+                    | PExpr DOT LPRN TYPE RPRN
+                    | PExpr DOT LPRN ExprOrType RPRN
+                    | ConvType LPRN Expr OComma RPRN
+                    | PExpr LSQR OExpr COLON OExpr RSQR
+                    | PExpr LSQR OExpr COLON OExpr COLON OExpr RSQR'''
     global curr_scope
-    p[0] = container()
-    if len(p)==2:
-        p[0].value = p[1] #name is a string
-        p[0].type = curr_scope.lookup(p[1])["type"]
-    # elif len(p)==
+    if len(p)==2 :
+        if str(p.slice[1]) == "Literal":
+            p[0] = p[1]
+        elif str(p.slice[1]) == "Name":
+            p[0] = container()
+            p[0].value = p[1] #name is a string
+            p[0].type = curr_scope.lookup(p[1])["type"]
+    elif len(p)==5 :
+        if p[2] == '[' :
+            # Indexing
+            if p[1].type == "arr" :
+                pass
+            elif (p[1].type == "ptr") and (p[1].base == "arr"):
+                pass
+            else :
+                pass
 
-def p_exp_no_paren2(p):
-    '''PExprNoParen : Literal'''
-    # literal is a container with value and type
-    p[0] = p[1]
+
+
+
+
+# def p_exp_no_paren2(p):
+#     '''PExprNoParen : Literal'''
+#     # literal is a container with value and type
+#     p[0] = p[1]
 
 def p_conv_type(p):
     '''ConvType : FuncType
@@ -705,20 +781,41 @@ def p_expr(p):
             | Expr MUL Expr
             | Expr AND Expr
             | Expr AND_NOT Expr'''
+    global curr_scope
     if len(p) == 2 :
         p[0] = p[1]
     else:
-    #     p[0]
         p[0] = container()
-        if p[1].type != p[3].type:
-            # check if it is float = int case
-            if (p[1].type=="float" or p[3].type=="float") and (p[1].type=="int" or p[3].type=="int"):
-                p[1].type = "float"
-                p[3].type = "float"
-            else:
-                raise_typerror(p, "type error in expression operations")
-        p[0].type = p[1].type
-        p[0].value = str(p[1].value) + p[2] + str(p[3].value)
+        p[0].code = p[1].code + p[3].code
+        new_place = curr_scope.new_temp()
+        p[0].value = new_place
+        # int only operators
+        if p[2] in set({"||","&&","&","|","^","<<",">>","&^","%"}):
+            if p[1].type == "int" and p[3].type == "int":
+                 p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op=p[2],arg2=p[3].value))
+                 p[0].type = "int"
+            else :
+                raise_typerror(p, "in expression : "
+                    + p[2] + " operator takes int operands only" )
+        # int or float
+        elif p[2] in set({"+","-","*","/","<",">",">=","<=","!=","=="}):
+            if (p[1].type == "int" and p[3].type == "int")
+                    or (p[1].type == "float" and p[3].type == "float") :
+                p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op=p[2],arg2=p[3].value))
+                p[0].type = p[1].type
+            elif p[1].type == "int" and p[1].type == "float" :
+                new_place1 = curr_scope.new_temp()
+                p[0].code.append(UOP(dst=new_place1,op="inttofloat",arg1=p[1].value))
+                p[0].code.append(BOP(dst=new_place,arg1=new_place1,op=p[2],arg2=p[3].value))
+                p[0].type = "float"
+            elif p[1].type == "float" and p[1].type == "int" :
+                new_place1 = curr_scope.new_temp()
+                p[0].code.append(UOP(dst=new_place1,op="inttofloat",arg1=p[3].value))
+                p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op=p[2],arg2=new_place1))
+                p[0].type = "float"
+            else :
+                raise_typerror(p, "in expression : "
+                    + p[2] + " operator takes int or float operands only" )
 
 
 def p_uexpr(p):
@@ -763,6 +860,7 @@ def p_pseudocall(p):
                   | PExpr LPRN ExprOrTypeList OComma RPRN
                   | PExpr LPRN ExprOrTypeList ELPS OComma RPRN'''
 
+
 def p_empty(p):
     '''empty : '''
     p[0] = None
@@ -780,8 +878,9 @@ def p_end_scope(p):
 def p_error(p):
     global curr_scope
     print(p)
-    print("syntax error")
-    print(curr_scope.identity)
+    exit(-1)
+    # print("syntax error")
+    # print(curr_scope.identity)
 
 
 # root = ScopeTree("global", None)

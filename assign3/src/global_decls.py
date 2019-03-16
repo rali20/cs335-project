@@ -23,8 +23,8 @@ class ScopeTree:
             self.identity = {"name":scopeName}
             scope_count += 1
 
-    def insert(self, id, type, is_var=1, arg_list=None, size=None, ret_type=None):
-        self.symbolTable[id] = {"type":type, "is_var":is_var, "arg_list":arg_list, "size":size, "ret_type":ret_type}
+    def insert(self, id, type, is_var=1, arg_list=None, size=None, ret_type=None, length=None, base=None):
+        self.symbolTable[id] = {"type":type, "base":base, "is_var":is_var,"size":size, "arg_list":arg_list, "ret_type":ret_type, "length":length}
 
     def insert_type(self, new_type, Ntype):
         self.typeTable[new_type] = Ntype
@@ -61,6 +61,8 @@ class Builtin(object):
         self.base = None
     def __len__(self):
         return self.width
+    def __repr__(self):
+        return self.name
 
 class Int(Builtin):
     def __init__(self):
@@ -98,7 +100,8 @@ class Derived(object):
                 self.name = "arr" + base.name
             elif op == "struct" :
                 self.name = "struct" + arg["name"]
-
+# i am saying use attributes for array - base, just like for func type
+# curr_scope.symbolTable["any_array_ident"] = {"type":"array"}? Is that what you wanna say?
 class Tac(object):
     def __init__(self, type=None, op=None, arg1=None, arg2=None, dst=None):
         self.type = type
@@ -220,7 +223,7 @@ def print_scopeTree(node):
         print("child:", i.identity)
     print("symbolTable:")
     for var, val in temp.symbolTable.items():
-        print(var, val["type"], val["is_var"])
+        print(var, val)
     print("TypeTable:")
     for new_type, Ntype in temp.typeTable.items():
         print(new_type, Ntype)
