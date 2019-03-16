@@ -11,22 +11,6 @@ root = ScopeTree(None, scopeName="global")
 curr_scope = root
 # print(curr_scope,2)
 
-class container(object):
-    def __init__(self,type=None,value=None):
-        self.code = list()
-        self.place = None
-        self.extra = dict()
-        self.type = type
-        self.value = value
-
-class sourcefile(object):
-    def __init__(self):
-        self.code = list()
-        self.package = str()
-    # for each import - { package:package_name,as:local_name,path:package_path }
-        self.imports = list()
-
-
 precedence = (
     ('right', 'AGN','ADD_AGN','SUB_AGN','MUL_AGN',
         'QUO_AGN','REM_AGN','AND_AGN','OR_AGN',
@@ -333,7 +317,7 @@ def p_struct_type(p):
     p[0] = container()
     if len(p)==8:
         # StructDeclList is a dictionary {ident:Ntype}
-        p[0].extra["arg_list"] = p[3]
+        p[0].extra["fields"] = p[3]
 
 
 
@@ -392,12 +376,12 @@ def p_struct_decl_list(p):
     # StructDeclList is a dictionary {ident:Ntype}
     if len(p)==2:
         p[0] = {}
-        for i in p[1].value:
-            p[0][i] = p[1].type
+        for field_name in p[1].value:
+            p[0][field_name] = p[1].type
     else:
         p[0] = p[1]
-        for i in p[3].value:
-            p[0][i] = p[3].type
+        for field_name in p[3].value:
+            p[0][field_name] = p[3].type
 
 def p_interface_decl_list(p):
     '''InterfaceDeclList : InterfaceDecl
@@ -434,7 +418,7 @@ def p_new_name(p):
 
 def p_ptr_type(p):
     '''PtrType : MUL NType'''
-    # ptrType is a onject
+    # ptrType is a object
     p[0] = container()
     p[0].type = "pointer"
     p[0].extra["base"] = p[2]
@@ -798,9 +782,8 @@ def p_expr(p):
                 raise_typerror(p, "in expression : "
                     + p[2] + " operator takes int operands only" )
         # int or float
-        elif p[2] in set({"+","-","*","/","<",">",">=","<=","!=","=="}):
-            if (p[1].type == "int" and p[3].type == "int")
-                    or (p[1].type == "float" and p[3].type == "float") :
+        else : #p[2] in set({"+","-","*","/","<",">",">=","<=","!=","=="}):
+            if (p[1].type == "int" and p[3].type == "int") or (p[1].type == "float" and p[3].type == "float") :
                 p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op=p[2],arg2=p[3].value))
                 p[0].type = p[1].type
             elif p[1].type == "int" and p[1].type == "float" :
@@ -821,27 +804,44 @@ def p_expr(p):
 def p_uexpr(p):
     '''UExpr : PExpr
              | UnaryOp UExpr'''
+    global curr_scope
     if len(p)==2:
         p[0] = p[1]
     else:
-        p[0] = p[2] #default
-        # switch (p[1]){
-        # case "+":
-        #     p[0] = p[2]
-        #     break
-        # case "-":
-        #     p[0] = p[2]
-        #     break;
-        # case "!":
-        #     if p[2].type == "float":
-        #         raise_typerror(p, "Invalid operand for float")
-        #     p[0].type = p[2].type
-        #     p[0].value = p[1]+p[2].value
-        #     break;
-        # # case "^": to do
-        # }
-
-
+        p[0] = p[2]
+        if p[1] != "+" :
+            new_place = curr_scope.new_temp()
+            p[0].value = new_place
+            if (p[1] == "^") or (p[1] == "!") :
+                if p[2].type == "int" :
+                    p[0].code.append(UOP(dst=new_place,
+                        op=p[1],arg1=p[2].value))
+                    p[0].type = "int"
+                else :
+                    raise_typerror(p, "in unary expression : " + p[1]
+                        + " operator takes int operands only" )
+            elif p[1] == "-" :
+                if (p[2].type == "int") or (p[2].type == "float") :
+                    p[0].code.append(UOP(dst=new_place,
+                        op=p[1],arg1=p[2].value))
+                    p[0].type = p[2].type
+                else :
+                    raise_typerror(p, "in unary expression : " + p[1]
+                        + " operator takes int or float operands only" )
+            elif p[1] == "*" :
+                if p[2].type == "pointer" :
+                    p[0].code.append(UOP(dst=new_place,
+                        op=p[1],arg1=p[2].value))
+                    p[0].type = p[2].extra["base"].type
+                    p[0].extra = p[2].extra["base"].extra
+                else :
+                    raise_typerror(p, "in unary expression : " + p[1]
+                        + " operator takes pointer type operands only" )
+            else : #p[1] == "&"
+                    p[0].code.append(UOP(dst=new_place,
+                        op=p[1],arg1=p[2].value))
+                    p[0].type = "pointer"
+                    p[0].extra["base"] = p[2]
 
 def p_unary_op(p):
     '''UnaryOp : ADD

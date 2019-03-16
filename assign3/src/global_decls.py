@@ -49,10 +49,21 @@ class ScopeTree:
     def new_label():
         label_count += 1
         return "#"+str(label_count)
-# class container:
-#     def __init__(self, type=None, value=None):
-#         self.type = value
-#         self.value = type
+
+class container(object):
+    def __init__(self,type=None,value=None):
+        self.code = list()
+        self.place = None
+        self.extra = dict()
+        self.type = type
+        self.value = value
+
+class sourcefile(object):
+    def __init__(self):
+        self.code = list()
+        self.package = str()
+    # for each import - { package:package_name,as:local_name,path:package_path }
+        self.imports = list()
 
 class Builtin(object):
     def __init__(self,name,width=None):
@@ -88,7 +99,7 @@ class Error(Builtin):
      def __init__(self):
         super().__init__("error")
 
-typeOp = set({"arr","struct","ptr","func","interface","slice","map"})
+typeOp = set({"array","struct","pointer","function","interface","slice","map"})
 class Derived(object):
     def __init__(self,op,base,arg=None):
         self.arg = dict(arg)
