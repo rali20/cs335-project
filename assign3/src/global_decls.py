@@ -1,4 +1,8 @@
+## Coding Conventions
+# 'p' variables in p_<fun> are container() type
 # possible scopes: package, global, functions, ....
+
+
 global curr_scope
 curr_scope = None
 global scope_count
@@ -142,28 +146,28 @@ class BOP(Tac):
 class UOP(Tac):
     '''Unary Operation -> dst = op arg1'''
     def __init__(self,op,arg1,type="UOP"):
-        super.__init__(op=op,arg1=arg1,type=type)
+        super().__init__(op=op,arg1=arg1,type=type)
     def __str__(self):
         return " ".join([self.dst,"=",self.op,str(self.arg1)])
 
 class ASN(Tac):
     '''Assignment Operation -> dst = arg1'''
     def __init__(self,arg1,dst,type="ASN"):
-        super.__init__(arg1=arg1,dst=dst,type=type)
+        super().__init__(arg1=arg1,dst=dst,type=type)
     def __str__(self):
         return " ".join([self.dst,"=",str(self.arg1)])
 
 class JMP(Tac):
     '''Jump Operation -> goto dst'''
     def __init__(self,dst,type="JMP"):
-        super.__init__(dst=dst,type=type)
+        super().__init__(dst=dst,type=type)
     def __str__(self):
         return " ".join(["goto",self.dst])
 
 class JIF(Tac):
     '''Jump If -> if arg1 goto dst'''
     def __init__(self,arg1,dst,type="JIF"):
-        super.__init__(arg1=arg1,dst=dst,type=type)
+        super().__init__(arg1=arg1,dst=dst,type=type)
     def __str__(self):
         return " ".join(["if",str(self.arg1),"goto",self.dst])
 
@@ -260,7 +264,7 @@ def print_scopeTree(node,source_root):
 
     for i in temp.children:
         print_scopeTree(i,source_root)
-
-    print("-"*80)
+    three_ac = ""
     for line in source_root.code :
-        print(line)
+        three_ac = three_ac + "\n" + str(line)
+    return three_ac

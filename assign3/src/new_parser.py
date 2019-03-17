@@ -1,8 +1,3 @@
-# Keep in Mind: if any variable.type == container(), then find it's type by container().type
-
-
-
-
 import sys
 import os
 import ply.yacc as yacc
@@ -210,11 +205,12 @@ def p_inc_dec_op(p):
                 | DEC'''
     p[0] = p[1]
 
+
 def p_simple_stmt(p):
     '''SimpleStmt : Expr
                   | Expr IncDecOp
                   | ExprList AGN ExprList
-                  | Expr ShortAgnOp Expr
+                  | ExprList ShortAgnOp ExprList
                   | ExprList DEFN ExprList'''
     # a,b = 1
     # a,b,c = 2,3,2
@@ -235,27 +231,76 @@ def p_simple_stmt(p):
                 + p[2] + " operator takes int or float operands only" )
 
     elif len(p)==4:
+        if len(p[1].value) != len(p[3].value):
+            raise_out_of_bounds_error(p[1].value+p[3].value,
+                "error in short var decl/assignment")
         if p[2] == ":=" :
-            p[0] = p[3]
-            if len(p[1].value) != len(p[3].value):
-                raise_out_of_bounds_error(p[1].value+p[3].value,
-                    "error in short-Assignment/Declaration")
-            for i in range(len(p[1].value)):
-                # checked if left is IDENTIFIER
-                if type(p[1].value[i]) != container :
-                    curr_scope.insert(p[1].value[i].value, type=p[3].value[i].type, is_var=1)
+            # p[0] = container()
+            # for valexpr in p[3].value:
+            #     p[0].code += valexpr.code
+            # for i in range(len(p[1].value)):
+            #     ident = p[1].value[i]
+            #     valexpr = p[3].value[i]
+            #     # TODO : check if left is IDENTIFIER
+            #     if ident.type == valexpr.type :
+            #         if ident.type in set({"int","float"}) :
+            #             p[0].code.append(ASN(dst=new_place,arg1=valexpr.value))
+            #     elif (ident.type == "float") and (ident.type == "int") :
+            #          p[0].code.append(ASN(dst=new_place,arg1=valexpr.value))
+            #     else :
+            #         raise_typerror(p, "in assignment : operands are different type")
+            #     p[0].type = "void"
+            pass
 
         elif p[2] == "=" :
-            if ( len(p[1].value) == len(p[3].value) ) or (len(p[3].value)==1):
-                for i in range(len(p[1].value)):
-                    if p[1].value[i].type != p[3].value[i].type:
-                        raise_typerror(p[1].value[i].value+" "+p[3].value[i].value, "type mismatch")
-
-            else :
-                raise_out_of_bounds_error(p[1].value+p[3].value,
-                    "error in short-Assignment/Declaration")
-
-
+            p[0] = container()
+            for expr in p[1].value:
+                p[0].code += expr.code
+            for valexpr in p[3].value:
+                p[0].code += valexpr.code
+            for i in range(len(p[1].value)):
+                expr = p[1].value[i]
+                valexpr = p[3].value[i]
+                new_place = curr_scope.new_temp()
+                if expr.type == valexpr.type :
+                    if expr.type in set({"int","float"}) :
+                        p[0].code.append(ASN(dst=new_place,arg1=valexpr.value))
+                elif (expr.type == "float") and (expr.type == "int") :
+                     p[0].code.append(ASN(dst=new_place,arg1=valexpr.value))
+                else :
+                    raise_typerror(p, "in assignment : operands are different type")
+                p[0].type = "void"
+        else :
+            p[2] = p[2][:-1]
+            p[0] = container()
+            for expr in p[1].value:
+                p[0].code += expr.code
+            for valexpr in p[3].value:
+                p[0].code += valexpr.code
+            for i in range(len(p[1].value)):
+                expr = p[1].value[i]
+                valexpr = p[3].value[i]
+                # int only operators
+                if p[2] in set({"&","|","^","<<",">>","&^","%"}):
+                    if expr.type == "int" and valexpr.type == "int":
+                         p[0].code.append(BOP(dst=expr.value,arg1=expr.value,op=p[2],arg2=valexpr.value))
+                    else :
+                        raise_typerror(p, "in assignment : "
+                            + p[2] + " operator takes int operands only" )
+                    p[0].type = "void"
+                # int or float
+                else : #p[2] in set({"+","-","*","/"}):
+                    if ((expr.type == "int" and valexpr.type == "int")
+                            or (expr.type == "float" and valexpr.type == "float")) :
+                        p[0].code.append(BOP(dst=expr.value,arg1=expr.value,op=p[2],arg2=valexpr.value))
+                    elif expr.type == "float" and valexpr.type == "int" :
+                        new_place1 = curr_scope.new_temp()
+                        p[0].code.append(UOP(dst=new_place1,op="inttofloat",arg1=valexpr.value))
+                        p[0].code.append(BOP(dst=expr.value,arg1=expr.value,op=p[2],arg2=new_place1))
+                    else :
+                        raise_typerror(p, "in assignment : "
+                            + p[2] + " operator takes int or float operands / type mismatch" )
+                    p[0].type = "void"
 
 
 def p_quick_assign_op(p):
@@ -270,6 +315,7 @@ def p_quick_assign_op(p):
                   | SHL_AGN
                   | SHR_AGN
                   | AND_NOT_AGN'''
+    p[0] = p[1]
 
 def p_case(p):
     '''Case : CASE ExprList COLON
@@ -837,12 +883,12 @@ def p_expr(p):
                 p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op=p[2],arg2=p[3].value))
                 p[0].type = p[1].type
                 # print("BOP:int only",p[0].code[0])
-            elif p[1].type == "int" and p[1].type == "float" :
+            elif p[1].type == "int" and p[3].type == "float" :
                 new_place1 = curr_scope.new_temp()
                 p[0].code.append(UOP(dst=new_place1,op="inttofloat",arg1=p[1].value))
                 p[0].code.append(BOP(dst=new_place,arg1=new_place1,op=p[2],arg2=p[3].value))
                 p[0].type = "float"
-            elif p[1].type == "float" and p[1].type == "int" :
+            elif p[1].type == "float" and p[3].type == "int" :
                 new_place1 = curr_scope.new_temp()
                 p[0].code.append(UOP(dst=new_place1,op="inttofloat",arg1=p[3].value))
                 p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op=p[2],arg2=new_place1))
@@ -945,4 +991,7 @@ with open("factorial.go", "r") as f:
 result = parser.parse(data)
 
 
-print_scopeTree(root,source_root)
+three_ac = print_scopeTree(root,source_root)
+print("-"*20 + "START 3AC" + "-"*20)
+print(three_ac)
+print("-"*21 + "END 3AC" + "-"*21)
