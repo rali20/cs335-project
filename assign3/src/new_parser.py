@@ -59,9 +59,9 @@ def p_import(p):
     '''Import     : IMPORT ImportStmt
                   | IMPORT LPRN ImportStmtList OSemi RPRN
                   | IMPORT LPRN RPRN'''
-    if len(p) == 2 :
+    if len(p) == 3 :
         p[0] = p[2]
-    elif len(p) == 3 :
+    elif len(p) == 4 :
         p[0] = []
     else :
         p[0] = p[3]
@@ -69,6 +69,7 @@ def p_import(p):
 def p_import_stmt(p):
     '''ImportStmt : ImportHere STRING_LIT'''
     package = extract_package(p[2])
+
     p[0] = [dict({"package":package,"as":p[1],"path":p[2]})]
 
 def p_import_stmt_list(p):
@@ -83,7 +84,10 @@ def p_import_here(p):
     '''ImportHere : empty
                   | IDENT
                   | DOT'''
-    p[0] = p[1]
+    if p[1] :
+        p[0] = p[1]
+    else :
+        p[0] = ""
 
 def p_decl(p):
     '''Declaration : CommonDecl
@@ -330,20 +334,20 @@ def p_case_block(p):
 
 def p_case_block_list(p):
     '''CaseBlockList : empty
-                    | CaseBlockList CaseBlock'''
+                     | CaseBlockList CaseBlock'''
 
 def p_loop_body(p):
     '''LoopBody : LCURL StartScope StmtList EndScope RCURL'''
 
 def p_range_stmt(p):
     '''RangeStmt : ExprList AGN RANGE Expr
-          | ExprList DEFN RANGE Expr
-          | RANGE Expr'''
+                 | ExprList DEFN RANGE Expr
+                 | RANGE Expr'''
 
 def p_for_header(p):
     '''ForHeader : OSimpleStmt SEMCLN OSimpleStmt SEMCLN OSimpleStmt
-          | OSimpleStmt
-          | RangeStmt'''
+                 | OSimpleStmt
+                 | RangeStmt'''
 
 def p_for_body(p):
     '''ForBody : ForHeader LoopBody'''
@@ -354,12 +358,47 @@ def p_for_stmt(p):
 def p_if_header(p):
     '''IfHeader : Expr
                 | OSimpleStmt SEMCLN Expr'''
+    if len(p) == 2:
+        p[0] = p[1]
+        if p[1].type != "int" :
+            raise_typerror(p, "Condition Expr should be int type only")
+    else :
+        p[0] = p[1]
+        p[0].code += p[3].code
+        if p[3].type == "int" :
+            p[0].type = p[3].type
+            p[0].value = p[3].value
+        else :
+            raise_typerror(p, "Condition Expr should be int type only")
 
 def p_if_stmt(p):
     '''IfStmt : IF StartScope IfHeader LoopBody ElseIfList ElseStmt EndScope'''
+    global curr_scope
+    labelElse = curr_scope.new_label()
+    labelAfter = curr_scope.new_label()
+    p[0] = p[3]
+    p[0].code.append(CBR(arg1=p[3].value,op="==",arg2=0,dst=labelElse))
+    p[0].code += p[4].code
+    p[0].code.append(JMP(dst=labelAfter))
+    p[0].code.append(LBL(arg1=labelElse))
+    p[0].code = p[0].code + p[5].code + p[6].code
+    p[0].code.append(LBL(arg1=labelAfter))
+
+
+
+
+
+
+
+
+
+
 
 def p_else_if(p):
     '''ElseIf : ELSE IF IfHeader LoopBody'''
+    p[0] = p[3]
+
+    p[0].code += p[4].code
 
 def p_else_if_list(p):
     '''ElseIfList : empty
@@ -548,6 +587,10 @@ def p_osemi(p):
 def p_osimple_stmt(p):
     '''OSimpleStmt : empty
                 | SimpleStmt'''
+    if p[1] :
+        p[0] = p[1]
+    else :
+        p[0] = container()
 
 def p_onew_name(p):
     '''ONewName : empty
@@ -991,7 +1034,11 @@ with open("factorial.go", "r") as f:
 result = parser.parse(data)
 
 
-three_ac = print_scopeTree(root,source_root)
+three_ac,ipkgs,package_name = print_scopeTree(root,source_root)
+print("-"*21 + "PACKAGE" + "-"*21)
+print(package_name)
+print("-"*21 + "IMPORTS" + "-"*21)
+print(ipkgs)
 print("-"*20 + "START 3AC" + "-"*20)
 print(three_ac)
 print("-"*21 + "END 3AC" + "-"*21)

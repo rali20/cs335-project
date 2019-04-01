@@ -129,7 +129,7 @@ class Tac(object):
         self.dst = dst
 
 class LBL(Tac):
-    '''Label Operation -> label:'''
+    '''Label Operation -> label :'''
     def __init__(self, arg1, type="LBL"):
         super().__init__(type,arg1=arg1)
 
@@ -164,12 +164,12 @@ class JMP(Tac):
     def __str__(self):
         return " ".join(["goto",self.dst])
 
-class JIF(Tac):
-    '''Jump If -> if arg1 goto dst'''
-    def __init__(self,arg1,dst,type="JIF"):
-        super().__init__(arg1=arg1,dst=dst,type=type)
-    def __str__(self):
-        return " ".join(["if",str(self.arg1),"goto",self.dst])
+# class JIF(Tac):
+#     '''Jump If -> if arg1 goto dst'''
+#     def __init__(self,arg1,dst,type="JIF"):
+#         super().__init__(arg1=arg1,dst=dst,type=type)
+#     def __str__(self):
+#         return " ".join(["if",str(self.arg1),"goto",self.dst])
 
 class CBR(Tac):
     '''Conditional Branch -> if arg1 op arg2 goto dst'''
@@ -249,22 +249,27 @@ def extract_package(package_name):
     return package_name.split("/")[-1]
 
 
-def print_scopeTree(node,source_root):
+def print_scopeTree(node,source_root,flag=False):
     temp = node
-    print("")
-    print("me:", temp.identity)
-    for i in temp.children:
-        print("child:", i.identity)
-    print("symbolTable:")
-    for var, val in temp.symbolTable.items():
-        print(var, val)
-    print("TypeTable:")
-    for new_type, Ntype in temp.typeTable.items():
-        print(new_type, Ntype)
+    if flag :
+        print("")
+        print("me:", temp.identity)
+        for i in temp.children:
+            print("child:", i.identity)
+        print("symbolTable:")
+        for var, val in temp.symbolTable.items():
+            print(var, val)
+        print("TypeTable:")
+        for new_type, Ntype in temp.typeTable.items():
+            print(new_type, Ntype)
 
-    for i in temp.children:
-        print_scopeTree(i,source_root)
+        for i in temp.children:
+            print_scopeTree(i,source_root)
+    ipkgs = ""
+    for pkg in source_root.imports :
+        ipkgs = (ipkgs +"package :"+pkg["package"] + " , as :" +pkg["as"]
+                +" , path:"+pkg["path"] + "\n")
     three_ac = ""
     for line in source_root.code :
-        three_ac = three_ac + "\n" + str(line)
-    return three_ac
+        three_ac = three_ac + str(line) + "\n"
+    return three_ac[:-1],ipkgs[:-1],source_root.package
