@@ -32,7 +32,7 @@ def p_source_file(p):
     p[0] = p[1]
 
 def p_top_level_decl(p):
-    '''TopLevelDecl : CommonDecl
+    '''TopLevelDecl : CommonDecl SEMCLN
     				| FuncDecl'''
     p[0] = p[1]
 
@@ -144,21 +144,22 @@ def p_stmt_block(p):
     '''StmtBlock : LCURL StartScope StmtList EndScope RCURL'''
     p[0] = p[3]
 
-def p_loop_body(p):
-    '''LoopBody : LCURL StartScope StmtList EndScope RCURL'''
+def p_block(p):
+    '''Block : LCURL StmtList RCURL'''
+    p[0] = p[2]
 
 def p_for_header(p):
     '''ForHeader : OSimpleStmt SEMCLN OSimpleStmt SEMCLN OSimpleStmt
                  | OSimpleStmt'''
 
 def p_for_body(p):
-    '''ForBody : ForHeader LoopBody'''
+    '''ForBody : ForHeader Block'''
 
 def p_for_stmt(p):
     '''ForStmt : FOR StartScope ForBody EndScope'''
 
 def p_if_stmt(p):
-    '''IfStmt : IF StartScope Expr LoopBody ElseIfList ElseStmt EndScope'''
+    '''IfStmt : IF Expr StmtBlock ElseOpt'''
     global curr_scope
     labelElse = curr_scope.new_label()
     labelAfter = curr_scope.new_label()
@@ -170,20 +171,10 @@ def p_if_stmt(p):
     p[0].code = p[0].code + p[5].code + p[6].code
     p[0].code.append(LBL(arg1=labelAfter))
 
-
-def p_else_if(p):
-    '''ElseIf : ELSE IF Expr LoopBody'''
-    p[0] = p[3]
-
-    p[0].code += p[4].code
-
-def p_else_if_list(p):
-    '''ElseIfList : empty
-                  | ElseIfList ElseIf'''
-
-def p_else(p):
-    '''ElseStmt : empty
-                | ELSE StmtBlock'''
+def p_else_opt(p):
+    '''ElseOpt : empty
+               | ELSE IfStmt
+               | ELSE StmtBlock'''
 
 def p_type(p):
     '''Type : Name
@@ -224,12 +215,12 @@ def p_func_decl(p):
     p[0] = p[6]
 
 def p_func_body(p):
-    '''FuncBody : empty
-                | LCURL StmtList RCURL'''
-    if len(p) == 2 :
+    '''FuncBody : SEMCLN
+                | Block'''
+    if p[1] == ";" :
         p[0] = container()
     else :
-        p[0] = p[2]
+        p[0] = p[1]
 
 
 def p_arg_list(p):
@@ -320,7 +311,7 @@ def p_oexpr_list(p):
 
 def p_expr_list(p):
     '''ExprList : Expr
-         | ExprList COMMA Expr'''
+                | ExprList COMMA Expr'''
     if len(p)==2:
         p[0] = container()
         p[0].value = [p[1]]
@@ -343,7 +334,7 @@ def p_basic_lit(p):
 
 def p_decl_list(p):
     '''DeclList : empty
-    			| DeclList TopLevelDecl SEMCLN'''
+    			| DeclList TopLevelDecl'''
     if len(p) == 2:
         p[0] = container()
     else :
@@ -361,13 +352,14 @@ def p_decl_name_list(p):
         p[0].value.append(p[3].value)
 
 def p_stmt_list(p):
-    '''StmtList : Stmt
-                | StmtList SEMCLN Stmt'''
+    '''StmtList : empty
+                | StmtList Stmt'''
     if len(p) == 2:
-        p[0] = p[1]
+        p[0] = container()
     else :
         p[0] = p[1]
-        p[0].code += p[3].code
+        p[0].code += p[2].code
+
 
 def p_field_list(p):
     '''FieldList : FieldName
@@ -422,37 +414,24 @@ def p_oarg_type_list_ocomma(p):
         p[0] = p[1]
 
 def p_stmt(p):
-    '''Stmt : empty
-            | StmtBlock
-            | CommonDecl
+    '''Stmt : StmtBlock
+            | CommonDecl SEMCLN
             | NonDeclStmt'''
-    if p[1] is None :
-        p[0] = container()
-    else :
-        p[0] = p[1]
+    p[0] = p[1]
 
 def p_non_decl_stmt(p):
-    '''NonDeclStmt : SimpleStmt
-                   | ForStmt
+    '''NonDeclStmt : ForStmt
                    | IfStmt
-                   | BREAK ONewName
-                   | CONTINUE ONewName
-                   | GOTO NewName
-                   | RETURN OExprList
+                   | SimpleStmt SEMCLN
+                   | BREAK ONewName SEMCLN
+                   | CONTINUE ONewName SEMCLN
+                   | GOTO NewName SEMCLN
+                   | RETURN OExprList SEMCLN
                    | LabelName COLON Stmt'''
     if len(p) == 2:
-            p[0] = p[1]
-    elif len(p) == 3:
-        if p[1] == "break":
-            pass
-        elif p[1] == "continue":
-            pass
-            pass
-        elif p[1] == "goto":
-            pass
-        else :
-            # return
-            pass
+        p[0] = p[1]
+    elif len(p) == 3 :
+        p[0] = p[1]
     else :
         pass
 
@@ -565,7 +544,7 @@ def p_uexpr(p):
     else:
         p[0] = p[2]
         if p[1] != "+" :
-            new_place = curr_scope.new_temp()
+            new_place = curr_scope.new_temp()# TEMP:
             p[0].value = new_place
             if (p[1] == "!") :
                 if p[2].type == "int" :
@@ -608,7 +587,7 @@ def p_unary_op(p):
 
 def p_empty(p):
     '''empty : '''
-    p[0] = None
+    p[0] = container()
 
 def p_start_scope(p):
     '''StartScope : empty'''
