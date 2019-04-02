@@ -1,10 +1,10 @@
 import ply.lex as lex
 
 keywords = {
-    'BREAK', 'CASE', 'CONST', 'CONTINUE',
-    'DEFAULT', 'ELSE', 'FOR', 'FUNC', 'GOTO',
-    'IF', 'RETURN', 'STRUCT', 'SWITCH',
-    'TYPE', 'VAR' }
+    'BREAK', 'CONST', 'CONTINUE',
+    'ELSE', 'FOR', 'FUNC', 'GOTO',
+    'IF', 'RETURN', 'STRUCT', 'TYPE',
+    'VAR' }
 
 operators = {
     'ADD',  # +
@@ -123,3 +123,5 @@ def t_newline(t):
 def t_error(t):
     print("Illegal Character")
     t.lexer.skip(1)
+
+lexer = lex.lex()

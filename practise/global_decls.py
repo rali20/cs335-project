@@ -1,3 +1,8 @@
+## Coding Conventions
+# 'p' variables in p_<fun> are container() type
+# possible scopes: package, global, functions, ....
+
+
 global curr_scope
 curr_scope = None
 global scope_count
@@ -85,8 +90,8 @@ class BOP(Tac):
 
 class UOP(Tac):
     '''Unary Operation -> dst = op arg1'''
-    def __init__(self,op,arg1,dst,type="UOP"):
-        super().__init__(op=op,arg1=arg1,dst=dst,type=type)
+    def __init__(self,op,arg1,type="UOP"):
+        super().__init__(op=op,arg1=arg1,type=type)
     def __str__(self):
         return " ".join([self.dst,"=",self.op,str(self.arg1)])
 
@@ -110,3 +115,41 @@ class CBR(Tac):
         super().__init__(op=op,arg1=arg1,arg2=arg2,dst=dst,type=type)
     def __str__(self):
         return " ".join(["if",str(self.arg1),self.op,str(self.arg2),"goto",self.dst])
+
+
+def raise_typerror(p, s=""):
+    print("Type error", s)
+    print(p)
+    exit(-1)
+
+def raise_out_of_bounds_error(p, s="" ):
+    print("out of bounds error")
+    print(p)
+    print(s)
+    exit(-1)
+
+def raise_general_error(s):
+    print(s)
+    exit(-1)
+
+
+def print_scopeTree(node,source_root,flag=False):
+    temp = node
+    if flag :
+        print("")
+        print("me:", temp.identity)
+        for i in temp.children:
+            print("child:", i.identity)
+        print("symbolTable:")
+        for var, val in temp.symbolTable.items():
+            print(var, val)
+        print("TypeTable:")
+        for new_type, Ntype in temp.typeTable.items():
+            print(new_type, Ntype)
+
+        for i in temp.children:
+            print_scopeTree(i,source_root)
+    three_ac = ""
+    for line in source_root.code :
+        three_ac = three_ac + str(line) + "\n"
+    return three_ac[:-1]

@@ -24,7 +24,7 @@ def p_source_file(p):
 
 def p_top_level_decl(p):
 	'''TopLevelDecl : CommonDecl
-					| FuncDecl''' 
+					| FuncDecl'''
 
 def p_common_decl(p):
     '''CommonDecl : CONST ConstDecl
@@ -36,8 +36,7 @@ def p_const_decl(p):
 
 def p_var_decl(p):
     '''VarDecl : DeclNameList Type
-               | DeclNameList Type AGN ExprList
-'''
+               | DeclNameList Type AGN ExprList'''
 
 def p_type_decl(p):
     '''TypeDecl : TypeDeclName Type'''
