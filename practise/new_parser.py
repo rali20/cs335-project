@@ -148,6 +148,7 @@ def p_block(p):
 def p_for_header(p):
     '''ForHeader : OSimpleStmt SEMCLN OSimpleStmt SEMCLN OSimpleStmt
                  | OSimpleStmt'''
+    p[0] = container()
     if len(p)==2 :
         p[0].extra["loop_type"] = "while"
         p[0].value = [container(),p[1],container()]
@@ -162,20 +163,37 @@ def p_for_body(p):
     block = p[2]
     initial,expr,update = p[1].value
     labelBegin = curr_scope.new_label()
-    labelAfter = curr_scope.new_label()
+    labelAfter = curr_scope.find_label("#forAfter")
+    labelUpdate = curr_scope.find_label("#forUpdate")
     p[0].code += initial.code
     p[0].code.append(LBL(arg1=labelBegin))
     p[0].code += expr.code
     p[0].code.append(CBR(arg1=expr.value,op="==",arg2=0,dst=labelAfter))
     p[0].code += block.code
+    p[0].code.append(LBL(arg1=labelUpdate))
     p[0].code += update.code
-    # need to take care of break, continue
+    # need to take care of break, continue - unlabelled
     p[0].code.append(JMP(dst=labelBegin))
     p[0].code.append(LBL(arg1=labelAfter))
 
 def p_for_stmt(p):
-    '''ForStmt : FOR StartScope ForBody EndScope'''
+    '''ForStmt : FOR beginFor ForBody endFor'''
     p[0] = p[3]
+    p[0].type = "for_stmt"
+
+def p_begin_for(p):
+    '''beginFor :'''
+    global curr_scope
+    curr_scope = curr_scope.makeChildren()
+    labelAfter = curr_scope.new_label()
+    labelUpdate = curr_scope.new_label()
+    curr_scope.insert_label(id="#forAfter",value=labelAfter)
+    curr_scope.insert_label(id="#forUpdate",value=labelUpdate)
+
+def p_end_for(p):
+    '''endFor :'''
+    global curr_scope
+    curr_scope = curr_scope.parent
 
 def p_if_stmt(p):
     '''IfStmt : IF Expr StmtBlock
@@ -245,7 +263,7 @@ def p_type(p):
 			| ArrayType
             | PtrType
 			| LPRN Type RPRN'''
-    # Functype is a container() object, with type="function", extra containing arg_list and ret_type
+    # Functype is a container() object, with type="func", extra containing arg_list and ret_type
     # ptrType is a container() object, with type="pointer", extra containing base
     if len(p)==2:
         p[0] = p[1]
@@ -274,7 +292,7 @@ def p_struct_type(p):
 def p_func_decl(p):
     '''FuncDecl : FUNC IDENT StartScope ArgList FuncRes FuncBody EndScope'''
     global curr_scope
-    curr_scope.insert(p[2], type="function", arg_list=p[4], ret_type=p[5])
+    curr_scope.insert(p[2], type="func", arg_list=p[4], ret_type=p[5])
     p[0] = p[6]
 
 def p_func_body(p):
@@ -324,9 +342,13 @@ def p_struct_decl(p):
 
 def p_label_name(p):
     '''LabelName : NewName'''
+    global curr_scope
+    curr_scope.insert(p[1], type="label", is_var=0)
+    p[0] = p[1]
 
 def p_new_name(p):
     '''NewName : IDENT'''
+    p[0] = p[1]
 
 def p_field_name(p):
     '''FieldName : IDENT'''
@@ -359,18 +381,23 @@ def p_osemi(p):
 def p_osimple_stmt(p):
     '''OSimpleStmt : empty
                    | SimpleStmt'''
-    if p[1] :
-        p[0] = p[1]
-    else :
-        p[0] = container()
+    p[0] = p[1]
 
 def p_onew_name(p):
     '''ONewName : empty
                 | NewName'''
+    if str(p.slice[1]) == "empty" :
+        p[0] = None
+    else :
+        p[0] = p[1]
+
 
 def p_oexpr_list(p):
     '''OExprList : empty
                  | ExprList'''
+    if p[1].value is None :
+        p[1].value = list()
+    p[0] = p[1]
 
 def p_expr_list(p):
     '''ExprList : Expr
@@ -491,22 +518,46 @@ def p_non_decl_stmt(p):
                    | GOTO NewName SEMCLN
                    | RETURN OExprList SEMCLN
                    | LabelName COLON Stmt'''
+    global curr_scope
     if len(p) == 2:
         p[0] = p[1]
     elif len(p) == 3 :
         p[0] = p[1]
     else :
-        pass
+        p[0] = container()
+        if str(p.slice[1]) == "LabelName" :
+            p[0].code.append(LBL(arg1=p[1]))
+            p[0].code += p[3].code
+        elif p[1] == "goto" :
+            p[0].code.append(JMP(dst=p[2]))
+        elif p[1] == "break" :
+            p[0].type = "break"
+            brk_lbl = curr_scope.find_label("#forAfter")
+            print("---------------",brk_lbl)
+            p[0].code.append(JMP(dst=brk_lbl))
+            if p[2] :
+                p[0].extra["label"] = p[2]
+        elif p[1] == "continue" :
+            p[0].type = "continue"
+            cont_lbl = curr_scope.find_label("#forUpdate")
+            p[0].code.append(JMP(dst=cont_lbl))
+            if p[2] :
+                p[0].extra["label"] = p[2]
+        else : # return
+            p[0].type = "return"
+            p[0].extra["payload"] = p[2].value
+
+
 
 
 def p_pexpr(p):
     '''PExpr : Name
 			 | BasicLit
+             | PseudoCall
 			 | CompositeLit
+             | LPRN Expr RPRN
 			 | PExpr DOT IDENT
-			 | PExpr LSQR Expr RSQR
-			 | PseudoCall
-			 | LPRN Expr RPRN'''
+			 | PExpr LSQR Expr RSQR'''
     if len(p)==2 :
         if str(p.slice[1]) == "Name":
             if curr_scope.lookup(p[1]) is None:
@@ -516,6 +567,11 @@ def p_pexpr(p):
             p[0].type = curr_scope.lookup(p[1])["type"]
         else :
             p[0] = p[1]
+    elif len(p)==4 :
+        if p[1] == "(" :
+            p[0] = p[2]
+        else : # struct access
+            pass
 
 def p_composite_lit(p):
 	'''CompositeLit : OtherType LitVal'''
@@ -674,7 +730,7 @@ with open("test.go", "r") as f:
     data = f.read()
 result = parser.parse(data)
 
-three_ac = print_scopeTree(root,source_root)
+three_ac = print_scopeTree(root,source_root,flag=True)
 print("-"*20 + "START 3AC" + "-"*20)
 print(three_ac)
 print("-"*21 + "END 3AC" + "-"*21)

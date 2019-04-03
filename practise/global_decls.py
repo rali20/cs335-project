@@ -19,6 +19,7 @@ class ScopeTree:
         self.parent = parent
         self.symbolTable = {} #{"var": [type, size, value, offset]}
         self.typeTable = self.parent.typeTable if parent is not None else {}
+        self.labelTable = {}
         if scopeName is None:
             global scope_count
             self.identity = {"name":scope_count}
@@ -30,8 +31,8 @@ class ScopeTree:
     def insert(self, id, type, is_var=1, arg_list=None, size=None, ret_type=None, length=None, base=None):
         self.symbolTable[id] = {"type":type, "base":base, "is_var":is_var,"size":size, "arg_list":arg_list, "ret_type":ret_type, "length":length}
 
-    def insert_type(self, new_type, Ntype):
-        self.typeTable[new_type] = Ntype
+    def insert_type(self, new_type, Type):
+        self.typeTable[new_type] = Type
 
     def makeChildren(self, childName=None):
         child = ScopeTree(self, childName)
@@ -50,12 +51,24 @@ class ScopeTree:
     def new_temp(self):
         global temp_count
         temp_count += 1
-        return "$"+str(temp_count)
+        return "$T"+str(temp_count)
 
     def new_label(self):
         global label_count
         label_count += 1
-        return "#"+str(label_count)
+        return "#L"+str(label_count)
+
+    def insert_label(self, id=None, value=None):
+        if id in self.labelTable:
+            return
+        self.labelTable[id]=value
+
+    def find_label(self, id=None):
+        print(self.identity,self.labelTable)
+        if id in self.labelTable:
+            return self.labelTable[id]
+        else:
+            return self.parent.find_label(id)
 
 class container(object):
     def __init__(self,type=None,value=None):
@@ -143,8 +156,8 @@ def print_scopeTree(node,source_root,flag=False):
         for var, val in temp.symbolTable.items():
             print(var, val)
         print("TypeTable:")
-        for new_type, Ntype in temp.typeTable.items():
-            print(new_type, Ntype)
+        for new_type, Type in temp.typeTable.items():
+            print(new_type, Type)
 
         for i in temp.children:
             print_scopeTree(i,source_root)
