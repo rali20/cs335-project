@@ -41,55 +41,67 @@ def p_common_decl(p):
                   | VAR VarDecl
                   | TYPE TypeDecl'''
     p[0] = container()
+    p[0].code = p[2].code
 
 def p_var_decl(p):
     '''VarDecl : DeclNameList Type
                | DeclNameList Type AGN ExprList'''
     global curr_scope
+    p[0] = container()
+    # incase type is declared to be some basic type e.g type new_int int;
+    if p[2] in curr_scope.typeTable:
+        p[2] = curr_scope.typeTable[p[2]]
+
     if len(p)==5:
+        # check length of decllist and ExprList
+        if len(p[1].value) != len(p[4].value):
+            raise_out_of_bounds_error(p[1].value , "different number of variables and expressions")
+        p[0].code = p[4].code
         # all types on right must be same as Type
-        for exp in p[4].value:
+        for i in range(len(p[4].value)):
+            exp = p[4].value[i]
             if (p[2] != exp.type):
                 # check if it is float = int case
                 if exp.type=="int" and p[2]=="float":
                     exp.type = "float"
-                    continue
-                raise_typerror(p[1].value,  "type mis-match in var declaration")
-        # incase type is declared to be some basic type e.g type new_int int;
-        if p[2] in curr_scope.typeTable:
-            p[2] = curr_scope.typeTable[p[2]]
-        # insert
-        for i in p[1].value:
-            curr_scope.insert(i, type=p[2], is_var=1)
+                    p[0].code.append(UOP(dst=p[1].value[i], op="inttofloat", arg1=exp.value))
+                else:
+                    raise_typerror(p[1].value,  "type mis-match in var declaration")
+            else:
+                p[0].code.append(ASN(dst=p[1].value[i], arg1=exp.value))
+            # finally insert
+            curr_scope.insert(p[1].value[i], type=p[2], is_var=1)
+
     else:
-        # incase type is declared to be some basic type e.g type new_int int;
-        if p[2] in curr_scope.typeTable:
-            p[2] = curr_scope.typeTable[p[2]]
         # insert
         for i in p[1].value:
             curr_scope.insert(i, type=p[2], is_var=1)
+    print([str(line) for line in p[0].code])
 
 
 def p_const_decl(p):
     '''ConstDecl : DeclNameList Type AGN ExprList'''
     global curr_scope
-    # check length of decllist and ExprList
-    if len(p[1].value) != len(p[4].value):
-        raise_out_of_bounds_error(p[1].value , "different number of variables and expressions")
-    # all types on right must be same as ntype
-    for exp in p[4].value:
+    p[0] = container()
+    # incase type is declared to be some basic type e.g type new_int int;
+    if p[2] in curr_scope.typeTable:
+        p[2] = curr_scope.typeTable[p[2]]
+    p[0].code = p[4].code
+    # all types on right must be same as Type
+    for i in range(len(p[4].value)):
+        exp = p[4].value[i]
         if (p[2] != exp.type):
             # check if it is float = int case
             if exp.type=="int" and p[2]=="float":
                 exp.type = "float"
-                continue
-            raise_typerror(p[1].value, "type mis-match in const declaration")
-    # incase type is declared to be some basic type e.g type new_int int;
-    if p[2] in curr_scope.typeTable:
-        p[2] = curr_scope.typeTable[p[2]]
-    # insert all left sides
-    for i in p[1].value:
-        curr_scope.insert(i, p[2], is_var=0)
+                p[0].code.append(UOP(dst=p[1].value[i], op="inttofloat", arg1=exp.value))
+            else:
+                raise_typerror(p[1].value,  "type mis-match in var declaration")
+        else:
+            p[0].code.append(ASN(dst=p[1].value[i], arg1=exp.value))
+        # finally insert
+        curr_scope.insert(p[1].value[i], type=p[2], is_var=0)
+    print([str(line) for line in p[0].code])
 
 def p_type_decl_name(p):
     '''TypeDeclName : IDENT'''
@@ -122,19 +134,28 @@ def p_simple_stmt(p):
             p[0] = container()
             for expr in p[1].value:
                 p[0].code += expr.code
+
+                if curr_scope.lookup(expr.value) is None:
+                    raise_general_error(expr.value+ ": variable not defined?")
+                else:
+                    if curr_scope.lookup(expr.value)["is_var"]==0:
+                        raise_typerror(expr.value, ": Can't assign to a constant")
+
+
+
             for valexpr in p[3].value:
                 p[0].code += valexpr.code
             for i in range(len(p[1].value)):
                 expr = p[1].value[i]
                 valexpr = p[3].value[i]
                 if expr.type == valexpr.type :
-                    if expr.type in set({"int","float"}) :
+                    if expr.type in set({"int","float","string"}) :
                         p[0].code.append(ASN(dst=expr.value,arg1=valexpr.value))
                 elif (expr.type == "float") and (valexpr.type == "int") :
-                    new_place = curr_scope.new_temp()
+                    # new_place = curr_scope.new_temp()
                     p[0].code.append(UOP(dst=expr.value,op="inttofloat",arg1=valexpr.value))
                 else :
-                    raise_typerror(p, "in assignment : operands are different type")
+                    raise_typerror(p[1].value, "in assignment : operands are different type")
                 p[0].type = "void"
 
 def p_stmt_block(p):
@@ -405,9 +426,11 @@ def p_expr_list(p):
     if len(p)==2:
         p[0] = container()
         p[0].value = [p[1]]
+        p[0].code = p[1].code
     else:
         p[0] = p[1]
         p[0].value.append(p[3])
+        p[0].code = p[1].code + p[3].code
 
 def p_basic_lit(p):
     '''BasicLit : INTEGER_LIT

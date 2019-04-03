@@ -130,8 +130,8 @@ class CBR(Tac):
 
 
 def raise_typerror(p, s=""):
-    print("Type error", s)
-    print(p)
+    print("Type error: ", p)
+    print(s)
     exit(-1)
 
 def raise_out_of_bounds_error(p, s="" ):
@@ -160,7 +160,7 @@ def print_scopeTree(node,source_root,flag=False):
             print(new_type, Type)
 
         for i in temp.children:
-            print_scopeTree(i,source_root)
+            print_scopeTree(i,source_root, flag=flag)
     three_ac = ""
     for line in source_root.code :
         three_ac = three_ac + str(line) + "\n"
