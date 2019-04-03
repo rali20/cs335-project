@@ -66,8 +66,7 @@ class container(object):
         self.value = value
 
 class Tac(object):
-    def __init__(self, op=None, arg1=None, arg2=None, dst=None, type=None):
-        self.type = type
+    def __init__(self, op=None, arg1=None, arg2=None, dst=None):
         self.op = op
         self.arg1 = arg1
         self.arg2 = arg2
@@ -75,44 +74,44 @@ class Tac(object):
 
 class LBL(Tac):
     '''Label Operation -> label :'''
-    def __init__(self, arg1, type="LBL"):
-        super().__init__(type,arg1=arg1)
+    def __init__(self, arg1):
+        super().__init__(arg1=arg1)
 
     def __str__(self):
         return " ".join([str(self.arg1),":"])
 
 class BOP(Tac):
     '''Binary Operation -> dst = arg1 op arg2'''
-    def __init__(self, op, arg1, arg2, dst, type="BOP"):
-        super().__init__(op=op,arg1=arg1,arg2=arg2,dst=dst,type=type)
+    def __init__(self, op, arg1, arg2, dst):
+        super().__init__(op=op,arg1=arg1,arg2=arg2,dst=dst)
     def __str__(self):
         return " ".join([self.dst,"=",str(self.arg1),self.op,str(self.arg2)])
 
 class UOP(Tac):
     '''Unary Operation -> dst = op arg1'''
-    def __init__(self,op,arg1,type="UOP"):
-        super().__init__(op=op,arg1=arg1,type=type)
+    def __init__(self,dst,op,arg1):
+        super().__init__(dst=dst,op=op,arg1=arg1)
     def __str__(self):
         return " ".join([self.dst,"=",self.op,str(self.arg1)])
 
 class ASN(Tac):
     '''Assignment Operation -> dst = arg1'''
-    def __init__(self,arg1,dst,type="ASN"):
-        super().__init__(arg1=arg1,dst=dst,type=type)
+    def __init__(self,arg1,dst):
+        super().__init__(arg1=arg1,dst=dst)
     def __str__(self):
         return " ".join([self.dst,"=",str(self.arg1)])
 
 class JMP(Tac):
     '''Jump Operation -> goto dst'''
-    def __init__(self,dst,type="JMP"):
-        super().__init__(dst=dst,type=type)
+    def __init__(self,dst):
+        super().__init__(dst=dst)
     def __str__(self):
         return " ".join(["goto",self.dst])
 
 class CBR(Tac):
     '''Conditional Branch -> if arg1 op arg2 goto dst'''
-    def __init__(self, op, arg1, arg2, dst, type="CBR"):
-        super().__init__(op=op,arg1=arg1,arg2=arg2,dst=dst,type=type)
+    def __init__(self, op, arg1, arg2, dst):
+        super().__init__(op=op,arg1=arg1,arg2=arg2,dst=dst)
     def __str__(self):
         return " ".join(["if",str(self.arg1),self.op,str(self.arg2),"goto",self.dst])
 

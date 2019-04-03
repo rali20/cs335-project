@@ -1,7 +1,7 @@
 import ply.lex as lex
 
 keywords = {
-    'BREAK', 'CONST', 'CONTINUE',
+    'BREAK', 'CONST', 'CONTINUE', 'ELIF',
     'ELSE', 'FOR', 'FUNC', 'GOTO',
     'IF', 'RETURN', 'STRUCT', 'TYPE',
     'VAR' }

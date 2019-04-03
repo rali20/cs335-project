@@ -47,7 +47,7 @@ def p_var_decl(p):
                | DeclNameList Type AGN ExprList'''
     global curr_scope
     if len(p)==5:
-        # all types on right must be same as ntype
+        # all types on right must be same as Type
         for exp in p[4].value:
             if (p[2] != exp.type):
                 # check if it is float = int case
@@ -93,9 +93,7 @@ def p_const_decl(p):
 
 def p_type_decl_name(p):
     '''TypeDeclName : IDENT'''
-    # print(str(p.slice[0])=="TypeDeclName")
     p[0] = p[1]
-    # print(p.__dict__)
 
 def p_type_decl(p):
     '''TypeDecl : TypeDeclName Type'''
@@ -120,7 +118,6 @@ def p_simple_stmt(p):
                 "error in short var decl/assignment")
         if p[2] == ":=" :
             pass
-
         elif p[2] == "=" :
             p[0] = container()
             for expr in p[1].value:
@@ -130,12 +127,12 @@ def p_simple_stmt(p):
             for i in range(len(p[1].value)):
                 expr = p[1].value[i]
                 valexpr = p[3].value[i]
-                new_place = curr_scope.new_temp()
                 if expr.type == valexpr.type :
                     if expr.type in set({"int","float"}) :
-                        p[0].code.append(ASN(dst=new_place,arg1=valexpr.value))
-                elif (expr.type == "float") and (expr.type == "int") :
-                     p[0].code.append(ASN(dst=new_place,arg1=valexpr.value))
+                        p[0].code.append(ASN(dst=expr.value,arg1=valexpr.value))
+                elif (expr.type == "float") and (valexpr.type == "int") :
+                    new_place = curr_scope.new_temp()
+                    p[0].code.append(UOP(dst=expr.value,op="inttofloat",arg1=valexpr.value))
                 else :
                     raise_typerror(p, "in assignment : operands are different type")
                 p[0].type = "void"
@@ -151,30 +148,96 @@ def p_block(p):
 def p_for_header(p):
     '''ForHeader : OSimpleStmt SEMCLN OSimpleStmt SEMCLN OSimpleStmt
                  | OSimpleStmt'''
+    if len(p)==2 :
+        p[0].extra["loop_type"] = "while"
+        p[0].value = [container(),p[1],container()]
+    else :
+        p[0].extra["loop_type"] = "for"
+        p[0].value = [p[1],p[3],p[5]]
 
 def p_for_body(p):
     '''ForBody : ForHeader Block'''
+    global curr_scope
+    p[0] = container()
+    block = p[2]
+    initial,expr,update = p[1].value
+    labelBegin = curr_scope.new_label()
+    labelAfter = curr_scope.new_label()
+    p[0].code += initial.code
+    p[0].code.append(LBL(arg1=labelBegin))
+    p[0].code += expr.code
+    p[0].code.append(CBR(arg1=expr.value,op="==",arg2=0,dst=labelAfter))
+    p[0].code += block.code
+    p[0].code += update.code
+    # need to take care of break, continue
+    p[0].code.append(JMP(dst=labelBegin))
+    p[0].code.append(LBL(arg1=labelAfter))
 
 def p_for_stmt(p):
     '''ForStmt : FOR StartScope ForBody EndScope'''
+    p[0] = p[3]
 
 def p_if_stmt(p):
-    '''IfStmt : IF Expr StmtBlock ElseOpt'''
+    '''IfStmt : IF Expr StmtBlock
+              | IF Expr StmtBlock ElseStmt
+              | IF Expr StmtBlock ElifList ElseStmt'''
     global curr_scope
-    labelElse = curr_scope.new_label()
-    labelAfter = curr_scope.new_label()
-    p[0] = p[3]
-    p[0].code.append(CBR(arg1=p[3].value,op="==",arg2=0,dst=labelElse))
-    p[0].code += p[4].code
-    p[0].code.append(JMP(dst=labelAfter))
-    p[0].code.append(LBL(arg1=labelElse))
-    p[0].code = p[0].code + p[5].code + p[6].code
-    p[0].code.append(LBL(arg1=labelAfter))
+    if len(p)==4 :
+        labelAfter = curr_scope.new_label()
+        p[0] = p[2]
+        p[0].code.append(CBR(arg1=p[2].value,op="==",arg2=0,dst=labelAfter))
+        p[0].code += p[3].code
+        p[0].code.append(LBL(arg1=labelAfter))
+    elif len(p)==5 :
+        labelElse = curr_scope.new_label()
+        labelAfter = curr_scope.new_label()
+        p[0] = p[2]
+        p[0].code.append(CBR(arg1=p[2].value,op="==",arg2=0,dst=labelElse))
+        p[0].code += p[3].code
+        p[0].code.append(JMP(dst=labelAfter))
+        p[0].code.append(LBL(arg1=labelElse))
+        p[0].code += p[4].code
+        p[0].code.append(LBL(arg1=labelAfter))
+    else :
+        labelAfter = curr_scope.new_label()
+        # If
+        labelFalse = curr_scope.new_label()
+        p[0] = p[2]
+        p[0].code.append(CBR(arg1=p[2].value,op="==",arg2=0,dst=labelFalse))
+        p[0].code += p[3].code
+        p[0].code.append(JMP(dst=labelAfter))
+        p[0].code.append(LBL(arg1=labelFalse))
+        # ElifList
+        for expr,block in p[4].value :
+            labelFalse = curr_scope.new_label()
+            p[0].code += expr.code
+            p[0].code.append(CBR(arg1=expr.value,op="==",arg2=0,dst=labelFalse))
+            p[0].code += block.code
+            p[0].code.append(JMP(dst=labelAfter))
+            p[0].code.append(LBL(arg1=labelFalse))
+        # Else
+        p[0].code += p[5].code
+        p[0].code.append(LBL(arg1=labelAfter))
 
-def p_else_opt(p):
-    '''ElseOpt : empty
-               | ELSE IfStmt
-               | ELSE StmtBlock'''
+
+def p_else_if_list(p):
+    '''ElifList : ElifStmt
+                | ElifList ElifStmt'''
+    if len(p)==2 :
+        p[0] = container()
+        p[0].value = [ p[1].value ]
+    else :
+        p[0] = p[1]
+        p[0].value.append(p[2].value)
+
+def p_else_if(p):
+    '''ElifStmt : ELIF Expr StmtBlock'''
+    p[0] = container()
+    p[0].value = [p[3],p[4]]
+
+def p_else_stmt(p):
+    '''ElseStmt : ELSE StmtBlock'''
+    p[0] = p[2]
 
 def p_type(p):
     '''Type : Name
@@ -182,7 +245,7 @@ def p_type(p):
 			| ArrayType
             | PtrType
 			| LPRN Type RPRN'''
-    # Functype is a container() object, with type=function, extra containing arg_list and ret_type
+    # Functype is a container() object, with type="function", extra containing arg_list and ret_type
     # ptrType is a container() object, with type="pointer", extra containing base
     if len(p)==2:
         p[0] = p[1]
@@ -517,18 +580,18 @@ def p_expr(p):
         else : #p[2] in set({"+","-","*","/","<",">",">=","<=","!=","=="}):
             if ((p[1].type == "int" and p[3].type == "int")
                     or (p[1].type == "float" and p[3].type == "float")) :
-                p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op=p[2],arg2=p[3].value))
+                p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op=p[1].type+str(p[2]),arg2=p[3].value))
                 p[0].type = p[1].type
                 # print("BOP:int only",p[0].code[0])
             elif p[1].type == "int" and p[3].type == "float" :
                 new_place1 = curr_scope.new_temp()
                 p[0].code.append(UOP(dst=new_place1,op="inttofloat",arg1=p[1].value))
-                p[0].code.append(BOP(dst=new_place,arg1=new_place1,op=p[2],arg2=p[3].value))
+                p[0].code.append(BOP(dst=new_place,arg1=new_place1,op="float"+str(p[2]),arg2=p[3].value))
                 p[0].type = "float"
             elif p[1].type == "float" and p[3].type == "int" :
                 new_place1 = curr_scope.new_temp()
                 p[0].code.append(UOP(dst=new_place1,op="inttofloat",arg1=p[3].value))
-                p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op=p[2],arg2=new_place1))
+                p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op="float"+str(p[2]),arg2=new_place1))
                 p[0].type = "float"
             else :
                 raise_typerror(p, "in expression : "
