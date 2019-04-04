@@ -59,6 +59,15 @@ def p_var_decl(p):
         p[0].code = p[4].code
         # all types on right must be same as Type
         for i in range(len(p[4].value)):
+            # first insert
+            if type(p[2])==container:
+                print("container")
+                typ = p[2].type
+                base = p[2].extra["base"]
+                length = p[2].extra["length"]
+                p[1].value[i] = curr_scope.insert(p[1].value[i], type=typ, base=base, length=length ,is_var=1)
+            else:
+                p[1].value[i] = curr_scope.insert(p[1].value[i], type=p[2], is_var=1)
             exp = p[4].value[i]
             if (p[2] != exp.type):
                 # check if it is float = int case
@@ -69,14 +78,20 @@ def p_var_decl(p):
                     raise_typerror(p[1].value,  "type mis-match in var declaration")
             else:
                 p[0].code.append(ASN(dst=p[1].value[i], arg1=exp.value))
-            # finally insert
-            curr_scope.insert(p[1].value[i], type=p[2], is_var=1)
 
     else:
         # insert
-        for i in p[1].value:
-            curr_scope.insert(i, type=p[2], is_var=1)
-    print([str(line) for line in p[0].code])
+        for i in range(len(p[1].value)):
+            if type(p[2])==container:
+                print("container")
+                typ = p[2].type
+                base = p[2].extra["base"]
+                length = p[2].extra["length"]
+                p[1].value[i] = curr_scope.insert(p[1].value[i], type=typ, base=base, length=length ,is_var=1)
+            else:
+                p[1].value[i] = curr_scope.insert(p[1].value[i], type=p[2], is_var=1)
+            # curr_scope.insert(i, type=p[2], is_var=1)
+    # print([str(line) for line in p[0].code])
 
 
 def p_const_decl(p):
@@ -89,6 +104,8 @@ def p_const_decl(p):
     p[0].code = p[4].code
     # all types on right must be same as Type
     for i in range(len(p[4].value)):
+        # first insert
+        p[1].value[i] = curr_scope.insert(p[1].value[i], type=p[2], is_var=0)
         exp = p[4].value[i]
         if (p[2] != exp.type):
             # check if it is float = int case
@@ -99,9 +116,8 @@ def p_const_decl(p):
                 raise_typerror(p[1].value,  "type mis-match in var declaration")
         else:
             p[0].code.append(ASN(dst=p[1].value[i], arg1=exp.value))
-        # finally insert
-        curr_scope.insert(p[1].value[i], type=p[2], is_var=0)
-    print([str(line) for line in p[0].code])
+
+    # print([str(line) for line in p[0].code])
 
 def p_type_decl_name(p):
     '''TypeDeclName : IDENT'''
@@ -135,11 +151,11 @@ def p_simple_stmt(p):
             for expr in p[1].value:
                 p[0].code += expr.code
 
-                if curr_scope.lookup(expr.value) is None:
-                    raise_general_error(expr.value+ ": variable not defined?")
-                else:
-                    if curr_scope.lookup(expr.value)["is_var"]==0:
-                        raise_typerror(expr.value, ": Can't assign to a constant")
+                # if curr_scope.lookup(expr.value) is None:
+                #     raise_general_error(expr.value+ ": variable not defined?")
+                # else:
+                if curr_scope.lookup_by_uniq_id(expr.value)["is_var"]==0:
+                    raise_typerror(expr.value, ": Can't assign to a constant")
 
 
 
@@ -583,11 +599,14 @@ def p_pexpr(p):
 			 | PExpr LSQR Expr RSQR'''
     if len(p)==2 :
         if str(p.slice[1]) == "Name":
-            if curr_scope.lookup(p[1]) is None:
-                raise_general_error("undeclared variable: " + p[1])
             p[0] = container()
-            p[0].value = p[1] #name is a string
-            p[0].type = curr_scope.lookup(p[1])["type"]
+            lookup_result = curr_scope.lookup(p[1])
+            if lookup_result is not None:
+                # p[0].value = p[1] #name is a string
+                p[0].value = lookup_result["uniq_id"]
+                p[0].type = lookup_result["type"]
+            else:
+                raise_general_error("undeclared variable: " + p[1])
         else :
             p[0] = p[1]
     elif len(p)==4 :

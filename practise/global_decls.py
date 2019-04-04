@@ -12,6 +12,10 @@ global temp_count
 temp_count = 0
 global label_count
 label_count = 0
+global uniq_id
+uniq_id = 0 #every variable is assigned a unique id to simplify code generation
+global uniq_id_to_real
+uniq_id_to_real = {}
 
 class ScopeTree:
     def __init__(self, parent, scopeName=None):
@@ -30,6 +34,17 @@ class ScopeTree:
 
     def insert(self, id, type, is_var=1, arg_list=None, size=None, ret_type=None, length=None, base=None):
         self.symbolTable[id] = {"type":type, "base":base, "is_var":is_var,"size":size, "arg_list":arg_list, "ret_type":ret_type, "length":length}
+        global uniq_id
+        self.symbolTable[id]["uniq_id"] = "$var"+str(uniq_id)
+        global uniq_id_to_real
+        uniq_id_to_real["$var"+str(uniq_id)] = [self, id]
+        to_return =  "$var"+str(uniq_id)
+        uniq_id += 1
+        return to_return
+
+    def find_uniq_id(self, id):
+        return self.lookup(id)["uniq_id"]
+
 
     def insert_type(self, new_type, Type):
         self.typeTable[new_type] = Type
@@ -44,9 +59,14 @@ class ScopeTree:
             return self.symbolTable[id]
         else:
             if self.parent is None:
+                raise_general_error("undeclared variable: " + id)
                 return None
-                # raise_general_error("undeclared variable: " + id)
             return self.parent.lookup(id)
+
+    def lookup_by_uniq_id(self,uniq_id):
+        global uniq_id_to_real
+        then_scope, then_id = uniq_id_to_real[uniq_id]
+        return then_scope.symbolTable[then_id]
 
     def new_temp(self):
         global temp_count
