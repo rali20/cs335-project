@@ -404,15 +404,6 @@ def p_osimple_stmt(p):
                    | SimpleStmt'''
     p[0] = p[1]
 
-def p_onew_name(p):
-    '''ONewName : empty
-                | NewName'''
-    if str(p.slice[1]) == "empty" :
-        p[0] = None
-    else :
-        p[0] = p[1]
-
-
 def p_oexpr_list(p):
     '''OExprList : empty
                  | ExprList'''
@@ -536,8 +527,8 @@ def p_non_decl_stmt(p):
     '''NonDeclStmt : ForStmt
                    | IfStmt
                    | SimpleStmt SEMCLN
-                   | BREAK ONewName SEMCLN
-                   | CONTINUE ONewName SEMCLN
+                   | BREAK SEMCLN
+                   | CONTINUE SEMCLN
                    | GOTO NewName SEMCLN
                    | RETURN OExprList SEMCLN
                    | LabelName COLON Stmt'''
@@ -556,21 +547,14 @@ def p_non_decl_stmt(p):
         elif p[1] == "break" :
             p[0].type = "break"
             brk_lbl = curr_scope.find_label("#forAfter")
-            print("---------------",brk_lbl)
             p[0].code.append(JMP(dst=brk_lbl))
-            if p[2] :
-                p[0].extra["label"] = p[2]
         elif p[1] == "continue" :
             p[0].type = "continue"
             cont_lbl = curr_scope.find_label("#forUpdate")
             p[0].code.append(JMP(dst=cont_lbl))
-            if p[2] :
-                p[0].extra["label"] = p[2]
         else : # return
             p[0].type = "return"
             p[0].extra["payload"] = p[2].value
-
-
 
 
 def p_pexpr(p):
@@ -618,6 +602,7 @@ def p_element(p):
 def p_func_call(p):
 	'''PseudoCall : Name LPRN RPRN
 				  | Name LPRN ExprList RPRN'''
+    
 
 def p_expr(p):
     '''Expr : UExpr
