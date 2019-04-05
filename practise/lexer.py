@@ -33,14 +33,14 @@ operators = {
     'LPRN', # (
     'LSQR', # [
     'LCURL',  # {
-    'LPRN_OR',  # (|
+    # 'LPRN_OR',  # (|
     'COMMA',  # ,
     'DOT',  # .
 
     'RPRN',    # )
     'RSQR',    # ]
     'RCURL',    # }
-    'RPRN_OR',  # |)
+    # 'RPRN_OR',  # |)
     'SEMCLN',  # ;
     'COLON'     # :
 }
@@ -80,13 +80,13 @@ t_DEFN = r':='
 t_LPRN = r'\('
 t_LSQR = r'\['
 t_LCURL = r'\{'
-t_LPRN_OR = r'\(\|'
+# t_LPRN_OR = r'\(\|'
 t_COMMA = r','
 t_DOT = r'\.'
 t_RPRN = r'\)'
 t_RSQR = r'\]'
 t_RCURL = r'\}'
-t_RPRN_OR = r'\|\)'
+# t_RPRN_OR = r'\|\)'
 t_SEMCLN = r';'
 t_COLON = r':'
 

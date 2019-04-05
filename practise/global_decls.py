@@ -17,6 +17,17 @@ uniq_id = 0 #every variable is assigned a unique id to simplify code generation
 global uniq_id_to_real
 uniq_id_to_real = {}
 
+global offset
+offset = 0
+
+class container(object):
+    def __init__(self, type=None, value=None, size=None):
+        self.code = list()
+        self.extra = dict()
+        self.type = type
+        self.value = value
+        self.size = size
+
 class ScopeTree:
     def __init__(self, parent, scopeName=None):
         self.children = []
@@ -24,6 +35,7 @@ class ScopeTree:
         self.symbolTable = {} #{"var": [type, size, value, offset]}
         self.typeTable = self.parent.typeTable if parent is not None else {}
         self.labelTable = {}
+        self.temp_offset = 0 #used in calculating spcae acquired by a function (temp+variables)
         if scopeName is None:
             global scope_count
             self.identity = {"name":scope_count}
@@ -32,14 +44,23 @@ class ScopeTree:
             self.identity = {"name":scopeName}
             scope_count += 1
 
-    def insert(self, id, type, is_var=1, arg_list=None,field_list=None, size=None, ret_type=None, length=None, base=None):
+    def insert(self, id, type, is_var=1, arg_list=None,field_list=None,
+                size=0, ret_type=None, length=None, base=None):
         if id in self.symbolTable:
             raise_general_error(id+": Already declared")
-        self.symbolTable[id] = {"type":type, "base":base, "is_var":is_var,"size":size, "arg_list":arg_list,"field_list":field_list,"ret_type":ret_type, "length":length}
+        self.symbolTable[id] = {"type":type, "base":base, "is_var":is_var,
+            "size":size,"arg_list":arg_list,"field_list":field_list,
+            "ret_type":ret_type,"length":length}
         global uniq_id
         self.symbolTable[id]["uniq_id"] = "$var"+str(uniq_id)
         global uniq_id_to_real
         uniq_id_to_real["$var"+str(uniq_id)] = [self, id]
+
+        global offset
+        self.symbolTable[id]["offset"] = offset
+        offset += self.symbolTable[id]["size"]
+        self.temp_offset += self.symbolTable[id]["size"]
+
         to_return =  "$var"+str(uniq_id)
         uniq_id += 1
         return to_return
@@ -87,10 +108,14 @@ class ScopeTree:
         then_scope, then_id = uniq_id_to_real[uniq_id]
         return then_scope.symbolTable[then_id]
 
-    def new_temp(self):
+    def new_temp(self, type=None,size=None):
         global temp_count
         temp_count += 1
-        return "$T"+str(temp_count)
+        temp_id = "$T"+str(temp_count)
+        if size is None:
+            size=self.sizeof(type)
+        self.insert(temp_id,type=type,size=size)
+        return temp_id
 
     def new_label(self):
         global label_count
@@ -109,17 +134,6 @@ class ScopeTree:
         else:
             return self.parent.find_label(id)
 
-    def get_offset(self):
-        pass
-
-class container(object):
-    def __init__(self, type=None, value=None, size=None):
-        self.code = list()
-        self.place = None
-        self.extra = dict()
-        self.type = type
-        self.value = value
-        self.size = size
 
 class Tac(object):
     def __init__(self, op=None, arg1=None, arg2=None, dst=None):
@@ -129,7 +143,7 @@ class Tac(object):
         self.dst = dst
 
 class LBL(Tac):
-    '''Label Operation -> label :'''
+    '''Label Operation -> arg1 :'''
     def __init__(self, arg1):
         super().__init__(arg1=arg1)
 
@@ -157,13 +171,6 @@ class ASN(Tac):
     def __str__(self):
         return " ".join([self.dst,"=",str(self.arg1)])
 
-class JMP(Tac):
-    '''Jump Operation -> goto dst'''
-    def __init__(self,dst):
-        super().__init__(dst=dst)
-    def __str__(self):
-        return " ".join(["goto",self.dst])
-
 class CBR(Tac):
     '''Conditional Branch -> if arg1 op arg2 goto dst'''
     def __init__(self, op, arg1, arg2, dst):
@@ -171,6 +178,19 @@ class CBR(Tac):
     def __str__(self):
         return " ".join(["if",str(self.arg1),self.op,str(self.arg2),"goto",self.dst])
 
+class OP(Tac):
+    '''Operation -> op'''
+    def __init__(self,op):
+        super().__init__(op=op)
+    def __str__(self):
+        return self.op
+
+class CMD(Tac):
+    '''Command -> op arg1'''
+    def __init__(self,op,arg1):
+        super().__init__(op=op,arg1=arg1)
+    def __str__(self):
+        return " ".join([self.op,str(self.arg1)])
 
 def raise_typerror(p, s=""):
     print("Type error: ", p)

@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 '''Assumptions till now:
 1. Arrays are declared only as arr[10]int
 and not initialized in the declaration itself.
@@ -33,8 +35,18 @@ def p_start(p):
     source_root = p[1]
 
 def p_source_file(p):
-    '''SourceFile    : DeclList'''
+    '''SourceFile : DeclList'''
     p[0] = p[1]
+
+def p_decl_list(p):
+    '''DeclList : empty
+    			| DeclList TopLevelDecl'''
+    if len(p) == 2:
+        p[0] = container()
+    else :
+        p[0] =  p[1]
+        p[0].code += p[2].code
+
 
 def p_top_level_decl(p):
     '''TopLevelDecl : CommonDecl SEMCLN
@@ -57,19 +69,23 @@ def p_var_decl(p):
     if p[2] in curr_scope.typeTable:
         p[2] = curr_scope.typeTable[p[2]]["type"]
 
+    # TypeList for FuncDecl
+    p[0].type = [p[2]]*len(p[1].value)
+
     if len(p)==5:
         # check length of decllist and ExprList
         if len(p[1].value) != len(p[4].value):
-            raise_out_of_bounds_error(p[1].value , "different number of variables and expressions")
+            raise_out_of_bounds_error(p[1].value ,
+                "different number of variables and expressions")
         p[0].code = p[4].code
         # all types on right must be same as Type
         for i in range(len(p[4].value)):
             if type(p[2])==container:
-
                 typ = p[2].type
                 base = p[2].extra["base"]
                 length = p[2].extra["length"]
-                p[1].value[i] = curr_scope.insert(p[1].value[i], type=typ, base=base, length=length ,is_var=1)
+                p[1].value[i] = curr_scope.insert(p[1].value[i],
+                    type=typ, base=base, length=length ,is_var=1)
             else:
                 p[1].value[i] = curr_scope.insert(p[1].value[i], type=p[2], is_var=1)
             exp = p[4].value[i]
@@ -82,9 +98,7 @@ def p_var_decl(p):
                     raise_typerror(p[1].value,  "type mis-match in var declaration")
             else:
                 p[0].code.append(ASN(dst=p[1].value[i], arg1=exp.value))
-
     else:
-        
         for i in range(len(p[1].value)):
             if type(p[2])==container:
                 if p[2].type=="array":
@@ -92,18 +106,27 @@ def p_var_decl(p):
                     base = p[2].extra["base"]
                     length = p[2].extra["length"]
                     size = curr_scope.sizeof(p[2])
-                    p[1].value[i] = curr_scope.insert(p[1].value[i],type=typ,base=base,length=length,size=size,is_var=1)
+                    p[1].value[i] = curr_scope.insert(p[1].value[i],type=typ,
+                        base=base,length=length,size=size,is_var=1)
                 elif p[2].type=="structure":
                     typ = "structure"
                     field_list = p[2].extra["field_list"]
                     size = curr_scope.sizeof(p[2])
-                    p[1].value[i] = curr_scope.insert(p[1].value[i],type=typ,field_list=field_list,size=size,is_var=1)
+                    p[1].value[i] = curr_scope.insert(p[1].value[i],type=typ,
+                        field_list=field_list,size=size,is_var=1)
             else:
                 size = curr_scope.sizeof(p[2])
-                p[1].value[i] = curr_scope.insert(p[1].value[i],type=p[2],size=size,is_var=1)
-            # curr_scope.insert(i, type=p[2], is_var=1)
-    # print([str(line) for line in p[0].code])
+                p[1].value[i] = curr_scope.insert(p[1].value[i],type=p[2],
+                    size=size,is_var=1)
 
+def p_decl_name_list(p):
+    '''DeclNameList : Name
+    				| DeclNameList COMMA Name'''
+    if len(p)==2:
+        p[0] = container(value=[p[1]])
+    else:
+        p[0] = p[1]
+        p[0].value.append(p[3].value)
 
 def p_const_decl(p):
     '''ConstDecl : DeclNameList Type AGN ExprList'''
@@ -128,8 +151,6 @@ def p_const_decl(p):
         else:
             p[0].code.append(ASN(dst=p[1].value[i], arg1=exp.value))
 
-    # print([str(line) for line in p[0].code])
-
 def p_type_decl_name(p):
     '''TypeDeclName : IDENT'''
     p[0] = p[1]
@@ -141,9 +162,6 @@ def p_type_decl(p):
     if p[2] in curr_scope.typeTable:
         p[2] = curr_scope.typeTable[p[2]]["type"]
     curr_scope.insert_type(p[1], p[2])
-    #     return
-    # else:
-    #     size = curr_scope.sizeof(p[2])
 
 def p_simple_stmt(p):
     '''SimpleStmt : Expr
@@ -164,18 +182,10 @@ def p_simple_stmt(p):
         elif p[2] == "=" :
             p[0] = container()
             for expr in p[1].value:
-                p[0].code += expr.code
-
-                # if curr_scope.lookup(expr.value) is None:
-                #     raise_general_error(expr.value+ ": variable not defined?")
-                # else:
                 if curr_scope.lookup_by_uniq_id(expr.value)["is_var"]==0:
                     raise_typerror(expr.value, ": Can't assign to a constant")
-
-
-
-            for valexpr in p[3].value:
-                p[0].code += valexpr.code
+            p[0].code += p[1].code
+            p[0].code += p[3].code
             for i in range(len(p[1].value)):
                 expr = p[1].value[i]
                 valexpr = p[3].value[i]
@@ -225,7 +235,7 @@ def p_for_body(p):
     p[0].code.append(LBL(arg1=labelUpdate))
     p[0].code += update.code
     # need to take care of break, continue - unlabelled
-    p[0].code.append(JMP(dst=labelBegin))
+    p[0].code.append(CMD(op="goto",arg1=labelBegin))
     p[0].code.append(LBL(arg1=labelAfter))
 
 def p_for_stmt(p):
@@ -264,7 +274,7 @@ def p_if_stmt(p):
         p[0] = p[2]
         p[0].code.append(CBR(arg1=p[2].value,op="==",arg2=0,dst=labelElse))
         p[0].code += p[3].code
-        p[0].code.append(JMP(dst=labelAfter))
+        p[0].code.append(CMD(op="goto",arg1=labelAfter))
         p[0].code.append(LBL(arg1=labelElse))
         p[0].code += p[4].code
         p[0].code.append(LBL(arg1=labelAfter))
@@ -275,7 +285,7 @@ def p_if_stmt(p):
         p[0] = p[2]
         p[0].code.append(CBR(arg1=p[2].value,op="==",arg2=0,dst=labelFalse))
         p[0].code += p[3].code
-        p[0].code.append(JMP(dst=labelAfter))
+        p[0].code.append(CMD(op="goto",arg1=labelAfter))
         p[0].code.append(LBL(arg1=labelFalse))
         # ElifList
         for expr,block in p[4].value :
@@ -283,12 +293,11 @@ def p_if_stmt(p):
             p[0].code += expr.code
             p[0].code.append(CBR(arg1=expr.value,op="==",arg2=0,dst=labelFalse))
             p[0].code += block.code
-            p[0].code.append(JMP(dst=labelAfter))
+            p[0].code.append(CMD(op="goto",arg1=labelAfter))
             p[0].code.append(LBL(arg1=labelFalse))
         # Else
         p[0].code += p[5].code
         p[0].code.append(LBL(arg1=labelAfter))
-
 
 def p_else_if_list(p):
     '''ElifList : ElifStmt
@@ -315,8 +324,6 @@ def p_type(p):
 			| ArrayType
             | PtrType
 			| LPRN Type RPRN'''
-    # Functype is a container() object, with type="func", extra containing arg_list and ret_type
-    # ptrType is a container() object, with type="pointer", extra containing base
     if len(p)==2:
         p[0] = p[1]
     else:
@@ -342,47 +349,122 @@ def p_struct_type(p):
     if len(p)==6:
         p[0].extra["field_list"] = p[3]
         # example: type = p[0].extra["field_list"]["field_name"].type
+#
+# def p_empty_func(p):
+#     '''FuncDecl : FUNC IDENT beginFunc dParams FuncRes SEMCLN endFunc'''
+#     global curr_scope
+#     if not curr_scope.lookup(p[2]) :
+#         curr_scope.insert(p[2], type="func", arg_list=p[3], ret_type=p[4])
+#
+# def p_dparams(p):
+#     '''dParams : LPRN RPRN
+#                | LPRN dParamList RPRN'''
+#     p[0] = container()
+#     if len(p)==3 :
+#         p[0].type = list()
+#     else :
+#         p[0] = p[2]
+#
+# def p_dparam_list(p):
+#     '''dParamList : dVarDecl
+#                   | dParamList COMMA dVarDecl'''
+#     p[0] = p[1]
+#     if len(p)==4 :
+#         p[0].type += p[1].type
+#
+# def p_dvar_decl(p):
+#     '''dVarDecl : Type
+#                 | DeclNameList Type'''
+#     p[0] = container()
+#     if len(p)==2 :
+#         p[0].type = [p[1]]
+#     else :
+#         p[0].type = [p[2]]*len(p[1].value)
 
 def p_func_decl(p):
-    '''FuncDecl : FUNC IDENT beginFunc ArgList FuncRes FuncBody endFunc'''
+    '''FuncDecl : FUNC IDENT beginFunc Parameters FuncRes FuncBody endFunc'''
     global curr_scope
-    curr_scope.insert(p[2], type="func", arg_list=p[4], ret_type=p[5])
-    p[0] = p[6]
+    if p[6] is None :
+        if not curr_scope.lookup(p[2]) :
+            curr_scope.insert(p[2], type="func", arg_list=p[4].type,
+                ret_type=p[5].type, is_var=0)
+        else :
+            raise_typerror(p[2], "identifier type mismatch/ function redeclared")
+        if p[4].code :
+            raise_general_error(p[2], "Syntax error")
+    else :
+        lookup_result =  curr_scope.lookup(p[2])
+        if lookup_result :
+            if lookup_result["is_var"] :
+                raise_typerror(p[2], "Function Defined multiple times")
+            else :
+                curr_scope.insert(p[2], type="func", arg_list=p[4].type,
+                    ret_type=p[5].type, is_var=1)
+        p[0] = container()
+        p[0].code.append(LBL(arg1=p[2]))
+        p[0].code.append(CMD(op="BeginFunc",arg1=p[7]))
+        p[0].code += p[4].code
+        p[0].code += p[6].code
+        p[0].code.append(OP(op="EndFunc"))
 
 def p_begin_func(p):
     '''beginFunc :'''
     global curr_scope
     curr_scope = curr_scope.makeChildren()
+    curr_scope.offset = 0
 
-def p_end_func(p):
-    '''endFunc :'''
-    global curr_scope
-    p[0] = curr_scope.get_offset()
-    curr_scope = curr_scope.parent
+def p_parameters(p):
+    '''Parameters : LPRN RPRN
+                  | LPRN ParamList RPRN'''
+    if len(p)==2 :
+        p[0] = container()
+        p[0].type = list()
+    else :
+        p[0] = p[2]
+
+def p_param_list(p):
+    '''ParamList : dVarDecl
+                 | ParamList COMMA dVarDecl'''
+    if len(p)==2 :
+        p[0] = p[1]
+    else :
+        p[0] = p[1]
+        p[0].type += p[3].type
+        p[0].code += p[3].code
+
+def p_dvar_decl(p):
+    '''dVarDecl : Type
+                | VarDecl'''
+    if str(p.slice[1]) == "Type" :
+        p[0] = container()
+        p[0].type = [p[1]]
+    else :
+        p[0] = p[1]
 
 def p_func_body(p):
     '''FuncBody : SEMCLN
                 | Block'''
     if p[1] == ";" :
-        p[0] = container()
+        p[0] = None
     else :
         p[0] = p[1]
 
-
-def p_arg_list(p):
-    '''ArgList : LPRN OArgTypeListOComma RPRN'''
-    for id,type in zip(p[2].value, p[2].type):
-        curr_scope.insert(id, type=type, is_var=1)
-    p[0] = p[2]
-
 def p_func_res(p):
     '''FuncRes : empty
-               | FuncRetType
-               | LPRN_OR OArgTypeListOComma RPRN_OR'''
-    if len(p)==2:
-        p[0] = p[1]
-    else:
-        p[0] = p[2]
+               | Type'''
+    p[0] = container()
+    if str(p.slice[1]) == "empty" :
+        p[0].type = None
+    else :
+        p[0].type = p[1]
+
+def p_end_func(p):
+    '''endFunc :'''
+    global curr_scope
+    offset = curr_scope.temp_offset
+    p[0] = offset
+    # offset gives you the total space used by any (scope+it's scildren scopes)
+    curr_scope = curr_scope.parent
 
 def p_struct_decl_list(p):
     '''StructDeclList : StructDecl
@@ -428,14 +510,6 @@ def p_ptr_type(p):
     p[0].extra["base"] = p[2]
     p[0].value = "*"+p[2]
 
-def p_func_ret_type(p):
-    '''FuncRetType : ArrayType
-				   | StructType
-                   | PtrType
-				   | Name'''
-    p[0] = p[1]
-
-
 def p_ocomma(p):
     '''OComma : empty
               | COMMA'''
@@ -480,26 +554,6 @@ def p_basic_lit(p):
     else :
         p[0] = container(type="string", value=p[1])
 
-
-def p_decl_list(p):
-    '''DeclList : empty
-    			| DeclList TopLevelDecl'''
-    if len(p) == 2:
-        p[0] = container()
-    else :
-        p[0] =  p[1]
-        p[0].code += p[2].code
-
-
-def p_decl_name_list(p):
-    '''DeclNameList : DeclName
-    				| DeclNameList COMMA DeclName'''
-    if len(p)==2:
-        p[0] = container(value=[p[1].value])
-    else:
-        p[0] = p[1]
-        p[0].value.append(p[3].value)
-
 def p_stmt_list(p):
     '''StmtList : empty
                 | StmtList Stmt'''
@@ -508,7 +562,6 @@ def p_stmt_list(p):
     else :
         p[0] = p[1]
         p[0].code += p[2].code
-
 
 def p_field_list(p):
     '''FieldList : FieldName
@@ -519,48 +572,10 @@ def p_field_list(p):
         p[0] = p[1]
         p[0].append(p[3])
 
-def p_decl_name(p):
-    '''DeclName : IDENT'''
-    p[0] = container(value=p[1])
 
 def p_name(p):
     '''Name : IDENT'''
     p[0] = p[1]
-
-def p_arg_type(p):
-    '''ArgType : Type
-        	   | IDENT Type'''
-    p[0] = container()
-    if len(p)==2:
-        p[0].value = None
-        p[0].type = p[1]
-    else:
-        p[0].value = p[1]
-        p[0].type = p[2]
-
-
-def p_arg_type_list(p):
-    '''ArgTypeList : ArgType
-                   | ArgTypeList COMMA ArgType'''
-    if len(p)==2:
-        p[0] = container()
-        p[0].value = [p[1].value]
-        p[0].type = [p[1].type]
-    else:
-        p[0] = p[1]
-        p[0].value.append(p[3].value)
-        p[0].type.append(p[3].type)
-
-
-def p_oarg_type_list_ocomma(p):
-    '''OArgTypeListOComma : empty
-    					  | ArgTypeList OComma'''
-    p[0] = container()
-    if len(p)==2:
-        p[0].value = []
-        p[0].type = []
-    else:
-        p[0] = p[1]
 
 def p_stmt(p):
     '''Stmt : StmtBlock
@@ -588,28 +603,28 @@ def p_non_decl_stmt(p):
             p[0].code.append(LBL(arg1=p[1]))
             p[0].code += p[3].code
         elif p[1] == "goto" :
-            p[0].code.append(JMP(dst=p[2]))
+            p[0].code.append(CMD(op="goto",arg1=p[2]))
         elif p[1] == "break" :
             p[0].type = "break"
             brk_lbl = curr_scope.find_label("#forAfter")
-            p[0].code.append(JMP(dst=brk_lbl))
+            p[0].code.append(CMD(op="goto",arg1=brk_lbl))
         elif p[1] == "continue" :
             p[0].type = "continue"
             cont_lbl = curr_scope.find_label("#forUpdate")
-            p[0].code.append(JMP(dst=cont_lbl))
+            p[0].code.append(CMD(op="goto",arg1=cont_lbl))
         else : # return
             p[0].type = "return"
             p[0].extra["payload"] = p[2].value
 
-
 def p_pexpr(p):
     '''PExpr : Name
-			 | BasicLit
-             | PseudoCall
-			 | CompositeLit
+             | BasicLit
+             | FuncCall
+             | CompositeLit
              | LPRN Expr RPRN
-			 | PExpr DOT IDENT
-			 | PExpr LSQR Expr RSQR'''
+             | PExpr DOT IDENT
+             | PExpr LSQR Expr RSQR'''
+    print("PExpr",p.__dict__)
     if len(p)==2 :
         if str(p.slice[1]) == "Name":
             p[0] = container()
@@ -648,11 +663,46 @@ def p_element(p):
 			   | LitVal'''
 
 def p_func_call(p):
-	'''PseudoCall : Name LPRN RPRN
-				  | Name LPRN ExprList RPRN'''
-    if len(p)==2 :
-
-
+    '''FuncCall : Name LPRN RPRN
+    			| Name LPRN ExprList RPRN'''
+    global curr_scope
+    p[0] = container()
+    lookup_result = curr_scope.lookup(p[1])
+    if lookup_result is None:
+        raise_general_error("undeclared function: " + p[1])
+    if len(p)==4 :
+        if lookup_result["ret_type"] is None :
+            p[0].code.append(CMD(op="call",arg1=p[1]))
+            p[0].type = "void"
+        else :
+            p[0].type = lookup_result["ret_type"]
+            new_place = curr_scope.new_temp(lookup_result["ret_type"])
+            p[0].code.append(UOP(dst=new_place,op="call",arg1=p[1]))
+            p[0].value = new_place
+    else :
+        p[0].code += p[3].code
+        type_list = lookup_result["arg_list"]
+        expr_list = p[3].value
+        num_args = len(type_list)
+        if num_args != len(expr_list) :
+            raise_typerror(p[1],"No of arguments do not match")
+        pop_size = 0
+        for i in range(num_args-1,-1,-1):
+            expr = expr_list[i]
+            if type_list[i] != expr.type :
+                raise_typerror(p[3],"type mismatch"+p[1])
+            pop_size += curr_scope.sizeof(expr.type)
+            p[0].code.append(CMD(op="push_param",arg1=expr.value))
+        if lookup_result["ret_type"] is None :
+            p[0].code.append(CMD(op="call",arg1=p[1]))
+            p[0].value = None
+            p[0].type = "void"
+        else :
+            p[0].type = lookup_result["ret_type"]
+            new_place = curr_scope.new_temp(lookup_result["ret_type"])
+            p[0].code.append(UOP(dst=new_place,op="call",arg1=p[1]))
+            p[0].value = new_place
+        p[0].code.append(CMD(op="pop_param",arg1=pop_size))
 
 def p_expr(p):
     '''Expr : UExpr
@@ -680,7 +730,10 @@ def p_expr(p):
     else:
         p[0] = container()
         p[0].code = p[1].code + p[3].code
-        new_place = curr_scope.new_temp()
+        if p[1].type=="float" or p[3].type=="float":
+            new_place = curr_scope.new_temp(type="float")
+        else:
+            new_place = curr_scope.new_temp(type="int")
         p[0].value = new_place
         # int only operators
         if p[2] in set({"||","&&","&","|","<<",">>","%"}):
@@ -698,19 +751,18 @@ def p_expr(p):
                 p[0].type = p[1].type
                 # print("BOP:int only",p[0].code[0])
             elif p[1].type == "int" and p[3].type == "float" :
-                new_place1 = curr_scope.new_temp()
+                new_place1 = curr_scope.new_temp(type="float")
                 p[0].code.append(UOP(dst=new_place1,op="inttofloat",arg1=p[1].value))
                 p[0].code.append(BOP(dst=new_place,arg1=new_place1,op="float"+str(p[2]),arg2=p[3].value))
                 p[0].type = "float"
             elif p[1].type == "float" and p[3].type == "int" :
-                new_place1 = curr_scope.new_temp()
+                new_place1 = curr_scope.new_temp(type="float")
                 p[0].code.append(UOP(dst=new_place1,op="inttofloat",arg1=p[3].value))
                 p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op="float"+str(p[2]),arg2=new_place1))
                 p[0].type = "float"
             else :
                 raise_typerror(p, "in expression : "
                     + p[2] + " operator takes int or float operands only" )
-
 
 def p_uexpr(p):
     '''UExpr : PExpr
@@ -721,7 +773,7 @@ def p_uexpr(p):
     else:
         p[0] = p[2]
         if p[1] != "+" :
-            new_place = curr_scope.new_temp()# TEMP:
+            new_place = curr_scope.new_temp(type=p[2].type)# TEMP:
             p[0].value = new_place
             if (p[1] == "!") :
                 if p[2].type == "int" :
@@ -774,7 +826,9 @@ def p_start_scope(p):
 def p_end_scope(p):
     '''EndScope : empty'''
     global curr_scope
+    offset_used_by_child = curr_scope.temp_offset
     curr_scope = curr_scope.parent
+    curr_scope.temp_offset += offset_used_by_child
 
 def p_error(p):
     global curr_scope
