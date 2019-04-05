@@ -99,7 +99,6 @@ class ScopeTree:
             return self.symbolTable[id]
         else:
             if self.parent is None:
-                raise_general_error("undeclared variable: " + id)
                 return None
             return self.parent.lookup(id)
 

@@ -35,14 +35,15 @@ def p_start(p):
     source_root = p[1]
 
 def p_source_file(p):
-    '''SourceFile : DeclList'''
+    '''SourceFile : empty
+                  | DeclList'''
     p[0] = p[1]
 
 def p_decl_list(p):
-    '''DeclList : empty
-    			| DeclList TopLevelDecl'''
+    '''DeclList : TopLevelDecl
+    			| TopLevelDecl DeclList'''
     if len(p) == 2:
-        p[0] = container()
+        p[0] = p[1]
     else :
         p[0] =  p[1]
         p[0].code += p[2].code
@@ -349,37 +350,6 @@ def p_struct_type(p):
     if len(p)==6:
         p[0].extra["field_list"] = p[3]
         # example: type = p[0].extra["field_list"]["field_name"].type
-#
-# def p_empty_func(p):
-#     '''FuncDecl : FUNC IDENT beginFunc dParams FuncRes SEMCLN endFunc'''
-#     global curr_scope
-#     if not curr_scope.lookup(p[2]) :
-#         curr_scope.insert(p[2], type="func", arg_list=p[3], ret_type=p[4])
-#
-# def p_dparams(p):
-#     '''dParams : LPRN RPRN
-#                | LPRN dParamList RPRN'''
-#     p[0] = container()
-#     if len(p)==3 :
-#         p[0].type = list()
-#     else :
-#         p[0] = p[2]
-#
-# def p_dparam_list(p):
-#     '''dParamList : dVarDecl
-#                   | dParamList COMMA dVarDecl'''
-#     p[0] = p[1]
-#     if len(p)==4 :
-#         p[0].type += p[1].type
-#
-# def p_dvar_decl(p):
-#     '''dVarDecl : Type
-#                 | DeclNameList Type'''
-#     p[0] = container()
-#     if len(p)==2 :
-#         p[0].type = [p[1]]
-#     else :
-#         p[0].type = [p[2]]*len(p[1].value)
 
 def p_func_decl(p):
     '''FuncDecl : FUNC IDENT beginFunc Parameters FuncRes FuncBody endFunc'''
@@ -397,9 +367,7 @@ def p_func_decl(p):
         if lookup_result :
             if lookup_result["is_var"] :
                 raise_typerror(p[2], "Function Defined multiple times")
-            else :
-                curr_scope.insert(p[2], type="func", arg_list=p[4].type,
-                    ret_type=p[5].type, is_var=1)
+        curr_scope.insert(p[2], type="func", arg_list=p[4].type,ret_type=p[5].type, is_var=1)
         p[0] = container()
         p[0].code.append(LBL(arg1=p[2]))
         p[0].code.append(CMD(op="BeginFunc",arg1=p[7]))
@@ -452,11 +420,14 @@ def p_func_body(p):
 def p_func_res(p):
     '''FuncRes : empty
                | Type'''
+    global curr_scope
     p[0] = container()
     if str(p.slice[1]) == "empty" :
         p[0].type = None
+        curr_scope.insert_type("#return",None)
     else :
         p[0].type = p[1]
+        curr_scope.insert_type("#return",p[1])
 
 def p_end_func(p):
     '''endFunc :'''
@@ -523,11 +494,9 @@ def p_osimple_stmt(p):
                    | SimpleStmt'''
     p[0] = p[1]
 
-def p_oexpr_list(p):
-    '''OExprList : empty
-                 | ExprList'''
-    if p[1].value is None :
-        p[1].value = list()
+def p_oexpr(p):
+    '''OExpr : empty
+             | Expr'''
     p[0] = p[1]
 
 def p_expr_list(p):
@@ -590,7 +559,7 @@ def p_non_decl_stmt(p):
                    | BREAK SEMCLN
                    | CONTINUE SEMCLN
                    | GOTO NewName SEMCLN
-                   | RETURN OExprList SEMCLN
+                   | RETURN OExpr SEMCLN
                    | LabelName COLON Stmt'''
     global curr_scope
     if len(p) == 2:
@@ -605,16 +574,27 @@ def p_non_decl_stmt(p):
         elif p[1] == "goto" :
             p[0].code.append(CMD(op="goto",arg1=p[2]))
         elif p[1] == "break" :
-            p[0].type = "break"
+            # p[0].type = "break"
             brk_lbl = curr_scope.find_label("#forAfter")
             p[0].code.append(CMD(op="goto",arg1=brk_lbl))
         elif p[1] == "continue" :
-            p[0].type = "continue"
+            # p[0].type = "continue"
             cont_lbl = curr_scope.find_label("#forUpdate")
             p[0].code.append(CMD(op="goto",arg1=cont_lbl))
         else : # return
-            p[0].type = "return"
-            p[0].extra["payload"] = p[2].value
+            # p[0].type = "return"
+            p[0] = container()
+            ret_type = curr_scope.typeTable["#return"]["type"]
+            if ret_type == p[2].type :
+                if ret_type is None :
+                    p[0].code.append(OP(op="return"))
+                else :
+                    p[0].code += p[2].code
+                    p[0].code.append(CMD(op="return",arg1=p[2].value))
+            else :
+                raise_typerror(p[1],"type mismatch")
+
+
 
 def p_pexpr(p):
     '''PExpr : Name
@@ -624,7 +604,7 @@ def p_pexpr(p):
              | LPRN Expr RPRN
              | PExpr DOT IDENT
              | PExpr LSQR Expr RSQR'''
-    print("PExpr",p.__dict__)
+    # print("PExpr",p.__dict__)
     if len(p)==2 :
         if str(p.slice[1]) == "Name":
             p[0] = container()
@@ -842,7 +822,7 @@ with open("test.go", "r") as f:
     data = f.read()
 result = parser.parse(data)
 
-three_ac = print_scopeTree(root,source_root,flag=True)
+three_ac = print_scopeTree(root,source_root,flag=False)
 print("-"*20 + "START 3AC" + "-"*20)
 print(three_ac)
 print("-"*21 + "END 3AC" + "-"*21)
