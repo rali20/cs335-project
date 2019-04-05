@@ -327,10 +327,21 @@ def p_struct_type(p):
         p[0].extra["fields"] = p[3]
 
 def p_func_decl(p):
-    '''FuncDecl : FUNC IDENT StartScope ArgList FuncRes FuncBody EndScope'''
+    '''FuncDecl : FUNC IDENT beginFunc ArgList FuncRes FuncBody endFunc'''
     global curr_scope
     curr_scope.insert(p[2], type="func", arg_list=p[4], ret_type=p[5])
     p[0] = p[6]
+
+def p_begin_func(p):
+    '''beginFunc :'''
+    global curr_scope
+    curr_scope = curr_scope.makeChildren()
+
+def p_end_func(p):
+    '''endFunc :'''
+    global curr_scope
+    p[0] = curr_scope.get_offset()
+    curr_scope = curr_scope.parent
 
 def p_func_body(p):
     '''FuncBody : SEMCLN
@@ -621,7 +632,9 @@ def p_element(p):
 def p_func_call(p):
 	'''PseudoCall : Name LPRN RPRN
 				  | Name LPRN ExprList RPRN'''
-    
+    if len(p)==2 :
+
+
 
 def p_expr(p):
     '''Expr : UExpr

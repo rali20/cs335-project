@@ -90,6 +90,9 @@ class ScopeTree:
         else:
             return self.parent.find_label(id)
 
+    def get_offset(self):
+        pass
+
 class container(object):
     def __init__(self,type=None,value=None):
         self.code = list()
