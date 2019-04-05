@@ -1,3 +1,8 @@
+'''Assumptions till now:
+1. Arrays are declared only as arr[10]int
+and not initialized in the declaration itself.
+2.
+'''
 import sys
 import os
 import ply.yacc as yacc
@@ -50,7 +55,7 @@ def p_var_decl(p):
     p[0] = container()
     # incase type is declared to be some basic type e.g type new_int int;
     if p[2] in curr_scope.typeTable:
-        p[2] = curr_scope.typeTable[p[2]]
+        p[2] = curr_scope.typeTable[p[2]]["type"]
 
     if len(p)==5:
         # check length of decllist and ExprList
@@ -59,9 +64,8 @@ def p_var_decl(p):
         p[0].code = p[4].code
         # all types on right must be same as Type
         for i in range(len(p[4].value)):
-            # first insert
             if type(p[2])==container:
-                print("container")
+
                 typ = p[2].type
                 base = p[2].extra["base"]
                 length = p[2].extra["length"]
@@ -80,16 +84,23 @@ def p_var_decl(p):
                 p[0].code.append(ASN(dst=p[1].value[i], arg1=exp.value))
 
     else:
-        # insert
+        
         for i in range(len(p[1].value)):
             if type(p[2])==container:
-                print("container")
-                typ = p[2].type
-                base = p[2].extra["base"]
-                length = p[2].extra["length"]
-                p[1].value[i] = curr_scope.insert(p[1].value[i], type=typ, base=base, length=length ,is_var=1)
+                if p[2].type=="array":
+                    typ = "array"
+                    base = p[2].extra["base"]
+                    length = p[2].extra["length"]
+                    size = curr_scope.sizeof(p[2])
+                    p[1].value[i] = curr_scope.insert(p[1].value[i],type=typ,base=base,length=length,size=size,is_var=1)
+                elif p[2].type=="structure":
+                    typ = "structure"
+                    field_list = p[2].extra["field_list"]
+                    size = curr_scope.sizeof(p[2])
+                    p[1].value[i] = curr_scope.insert(p[1].value[i],type=typ,field_list=field_list,size=size,is_var=1)
             else:
-                p[1].value[i] = curr_scope.insert(p[1].value[i], type=p[2], is_var=1)
+                size = curr_scope.sizeof(p[2])
+                p[1].value[i] = curr_scope.insert(p[1].value[i],type=p[2],size=size,is_var=1)
             # curr_scope.insert(i, type=p[2], is_var=1)
     # print([str(line) for line in p[0].code])
 
@@ -100,7 +111,7 @@ def p_const_decl(p):
     p[0] = container()
     # incase type is declared to be some basic type e.g type new_int int;
     if p[2] in curr_scope.typeTable:
-        p[2] = curr_scope.typeTable[p[2]]
+        p[2] = curr_scope.typeTable[p[2]]["type"]
     p[0].code = p[4].code
     # all types on right must be same as Type
     for i in range(len(p[4].value)):
@@ -126,9 +137,13 @@ def p_type_decl_name(p):
 def p_type_decl(p):
     '''TypeDecl : TypeDeclName Type'''
     global curr_scope
+    p[0] = container()
     if p[2] in curr_scope.typeTable:
-        p[2] = curr_scope.typeTable[p[2]]
+        p[2] = curr_scope.typeTable[p[2]]["type"]
     curr_scope.insert_type(p[1], p[2])
+    #     return
+    # else:
+    #     size = curr_scope.sizeof(p[2])
 
 def p_simple_stmt(p):
     '''SimpleStmt : Expr
@@ -322,9 +337,11 @@ def p_array_type(p):
 
 def p_struct_type(p):
     '''StructType : STRUCT LCURL StructDeclList OSemi RCURL'''
+    # StructDeclList is a dictionary {ident:container(type=)}
     p[0] = container(type="structure")
-    if len(p)==8:
-        p[0].extra["fields"] = p[3]
+    if len(p)==6:
+        p[0].extra["field_list"] = p[3]
+        # example: type = p[0].extra["field_list"]["field_name"].type
 
 def p_func_decl(p):
     '''FuncDecl : FUNC IDENT beginFunc ArgList FuncRes FuncBody endFunc'''
@@ -370,15 +387,16 @@ def p_func_res(p):
 def p_struct_decl_list(p):
     '''StructDeclList : StructDecl
                       | StructDeclList SEMCLN StructDecl'''
-    # StructDeclList is a dictionary {ident:Ntype}
+    # StructDeclList is a dictionary {ident:container(type=type, size=)}
+    global curr_scope
     if len(p)==2:
         p[0] = {}
         for field_name in p[1].value:
-            p[0][field_name] = p[1].type
+            p[0][field_name] = container(type=p[1].type, size=curr_scope.sizeof(p[1].type))
     else:
         p[0] = p[1]
         for field_name in p[3].value:
-            p[0][field_name] = p[3].type
+            p[0][field_name] = container(type=p[3].type, size=curr_scope.sizeof(p[3].type))
 
 def p_struct_decl(p):
     '''StructDecl : FieldList Type'''

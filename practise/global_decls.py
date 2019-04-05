@@ -32,8 +32,10 @@ class ScopeTree:
             self.identity = {"name":scopeName}
             scope_count += 1
 
-    def insert(self, id, type, is_var=1, arg_list=None, size=None, ret_type=None, length=None, base=None):
-        self.symbolTable[id] = {"type":type, "base":base, "is_var":is_var,"size":size, "arg_list":arg_list, "ret_type":ret_type, "length":length}
+    def insert(self, id, type, is_var=1, arg_list=None,field_list=None, size=None, ret_type=None, length=None, base=None):
+        if id in self.symbolTable:
+            raise_general_error(id+": Already declared")
+        self.symbolTable[id] = {"type":type, "base":base, "is_var":is_var,"size":size, "arg_list":arg_list,"field_list":field_list,"ret_type":ret_type, "length":length}
         global uniq_id
         self.symbolTable[id]["uniq_id"] = "$var"+str(uniq_id)
         global uniq_id_to_real
@@ -42,12 +44,29 @@ class ScopeTree:
         uniq_id += 1
         return to_return
 
+    def sizeof(self,typ):
+        if typ in self.typeTable:
+            return self.typeTable["size"]
+        if typ=="int" or typ=="float" or typ=="string":
+            return 4 #string is considered to be pointer
+        elif type(typ)==container:
+            size=0
+            if typ.type=="structure":
+                for field in typ.extra["field_list"]:
+                    size += typ.extra["field_list"][field].size
+                return size
+            elif typ.type=="array":
+                len = typ.extra["length"]
+                return len*self.sizeof(typ.extra["base"])
+
+
     def find_uniq_id(self, id):
         return self.lookup(id)["uniq_id"]
 
 
     def insert_type(self, new_type, Type):
-        self.typeTable[new_type] = Type
+        self.typeTable[new_type] = {"type":Type}
+        self.typeTable[new_type]["size"] = self.sizeof(Type)
 
     def makeChildren(self, childName=None):
         child = ScopeTree(self, childName)
@@ -94,12 +113,13 @@ class ScopeTree:
         pass
 
 class container(object):
-    def __init__(self,type=None,value=None):
+    def __init__(self, type=None, value=None, size=None):
         self.code = list()
         self.place = None
         self.extra = dict()
         self.type = type
         self.value = value
+        self.size = size
 
 class Tac(object):
     def __init__(self, op=None, arg1=None, arg2=None, dst=None):
