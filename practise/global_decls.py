@@ -29,7 +29,7 @@ class container(object):
         self.size = size
 
 class ScopeTree:
-    def __init__(self, parent, scopeName=None):
+    def __init__(self, parent, scopeName=None, scope_type=None):
         self.children = []
         self.parent = parent
         self.symbolTable = {} #{"var": [type, size, value, offset]}
@@ -43,6 +43,7 @@ class ScopeTree:
         else:
             self.identity = {"name":scopeName}
             scope_count += 1
+        self.identity["type"] = scope_type
 
     def insert(self, id, type, is_var=1, arg_list=None,field_list=None,
                 size=0, ret_type=None, length=None, base=None):
@@ -133,6 +134,9 @@ class ScopeTree:
         else:
             return self.parent.find_label(id)
 
+    def reset_offset(self):
+        global offset
+        offset = 0
 
 class Tac(object):
     def __init__(self, op=None, arg1=None, arg2=None, dst=None):
