@@ -85,10 +85,12 @@ def p_var_decl(p):
                 typ = p[2].type
                 base = p[2].extra["base"]
                 length = p[2].extra["length"]
+                size=curr_scope.sizeof(p[2])
                 p[1].value[i] = curr_scope.insert(p[1].value[i],
-                    type=typ, base=base, length=length ,is_var=1)
+                    type=typ, base=base, length=length,size=size,is_var=1)
             else:
-                p[1].value[i] = curr_scope.insert(p[1].value[i], type=p[2], is_var=1)
+                size = curr_scope.sizeof(p[2])
+                p[1].value[i] = curr_scope.insert(p[1].value[i], type=p[2], size=size, is_var=1)
             exp = p[4].value[i]
             if (p[2] != exp.type):
                 # check if it is float = int case
@@ -243,6 +245,7 @@ def p_for_stmt(p):
     '''ForStmt : FOR beginFor ForBody endFor'''
     p[0] = p[3]
     p[0].type = "for_stmt"
+    p[4].identity["type"] = "ForLoop"
 
 def p_begin_for(p):
     '''beginFor :'''
@@ -256,7 +259,9 @@ def p_begin_for(p):
 def p_end_for(p):
     '''endFor :'''
     global curr_scope
+    to_return = curr_scope
     curr_scope = curr_scope.parent
+    p[0] = to_return
 
 def p_if_stmt(p):
     '''IfStmt : IF Expr StmtBlock
@@ -353,6 +358,7 @@ def p_struct_type(p):
 
 def p_func_decl(p):
     '''FuncDecl : FUNC IDENT beginFunc Parameters FuncRes FuncBody endFunc'''
+    p[7]["scope"].identity["name"] = p[2]
     global curr_scope
     if p[6] is None :
         if not curr_scope.lookup(p[2]) :
@@ -370,7 +376,7 @@ def p_func_decl(p):
         curr_scope.insert(p[2], type="func", arg_list=p[4].type,ret_type=p[5].type, is_var=1)
         p[0] = container()
         p[0].code.append(LBL(arg1=p[2]))
-        p[0].code.append(CMD(op="BeginFunc",arg1=p[7]))
+        p[0].code.append(CMD(op="BeginFunc",arg1=p[7]["offset"]))
         p[0].code += p[4].code
         p[0].code += p[6].code
         p[0].code.append(OP(op="EndFunc"))
@@ -378,8 +384,11 @@ def p_func_decl(p):
 def p_begin_func(p):
     '''beginFunc :'''
     global curr_scope
+    global offset
+    offset = 0
+    # curr_scope.reset_offset()
     curr_scope = curr_scope.makeChildren()
-    curr_scope.offset = 0
+
 
 def p_parameters(p):
     '''Parameters : LPRN RPRN
@@ -387,28 +396,34 @@ def p_parameters(p):
     if len(p)==3 :
         p[0] = container()
         p[0].type = list()
+        # print(p[0])
     else :
         p[0] = p[2]
+    print(p[0])
 
 def p_param_list(p):
-    '''ParamList : dVarDecl
-                 | ParamList COMMA dVarDecl'''
+    '''ParamList : ParamDecl
+                 | ParamList COMMA ParamDecl'''
     if len(p)==2 :
         p[0] = p[1]
+        # p[0] = container()
+        # p[0].value = p[1].value
+        # p[0].type = p[1].type
     else :
         p[0] = p[1]
         p[0].type += p[3].type
+        p[0].value += p[3].value
         p[0].code += p[3].code
+    print("Parameter List: ", p[0].value)
 
-def p_dvar_decl(p):
-    '''dVarDecl : Type
-                | VarDecl'''
-    if str(p.slice[1]) == "Type" :
-        p[0] = container()
-        p[0].type = [p[1]]
-    else :
-        p[0] = p[1]
-    # print(p[1].type)
+def p_param_Decl(p):
+    '''ParamDecl : IDENT Type'''
+    global curr_scope
+    p[0] = container()
+    p[0].value = [p[1]]
+    p[0].type = [p[2]]
+    size = curr_scope.sizeof(p[2])
+    curr_scope.insert(id=p[1], type=p[2], size=size)
 
 def p_func_body(p):
     '''FuncBody : SEMCLN
@@ -434,9 +449,10 @@ def p_end_func(p):
     '''endFunc :'''
     global curr_scope
     offset = curr_scope.temp_offset
-    p[0] = offset
+    p[0] = {"offset":offset, "scope":curr_scope}
     # offset gives you the total space used by any (scope+it's scildren scopes)
     curr_scope = curr_scope.parent
+
 
 def p_struct_decl_list(p):
     '''StructDeclList : StructDecl
@@ -806,9 +822,11 @@ def p_start_scope(p):
 def p_end_scope(p):
     '''EndScope : empty'''
     global curr_scope
+    to_return = curr_scope
     offset_used_by_child = curr_scope.temp_offset
     curr_scope = curr_scope.parent
     curr_scope.temp_offset += offset_used_by_child
+    p[0] = to_return
 
 def p_error(p):
     global curr_scope
@@ -822,7 +840,7 @@ with open("test.go", "r") as f:
     data = f.read()
 result = parser.parse(data)
 
-three_ac = print_scopeTree(root,source_root,flag=False)
+three_ac = print_scopeTree(root,source_root,flag=True)
 print("-"*20 + "START 3AC" + "-"*20)
 print(three_ac)
 print("-"*21 + "END 3AC" + "-"*21)
