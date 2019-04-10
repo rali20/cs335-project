@@ -21,7 +21,8 @@ global offset
 offset = 0
 
 class container(object):
-    def __init__(self, type=None, value=None, size=None):
+    def __init__(self, name=None,type=None, value=None, size=None):
+        self.name = name
         self.code = list()
         self.extra = dict()
         self.type = type
@@ -51,7 +52,7 @@ class ScopeTree:
             raise_general_error(id+": Already declared")
         self.symbolTable[id] = {"type":type, "base":base, "is_var":is_var,
             "size":size,"arg_list":arg_list,"field_list":field_list,
-            "ret_type":ret_type,"length":length}
+            "ret_type":ret_type,"length":length, "name":id}
         global uniq_id
         self.symbolTable[id]["uniq_id"] = "$var"+str(uniq_id)
         global uniq_id_to_real

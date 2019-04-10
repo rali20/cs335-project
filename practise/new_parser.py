@@ -8,9 +8,20 @@ and not initialized in the declaration itself.
 import sys
 import os
 import ply.yacc as yacc
+import argparse
 
 from lexer import *
 from global_decls import *
+
+argparser = argparse.ArgumentParser()
+argparser.add_argument("--input", help="Input go file in format [file.go]")
+argparser.add_argument("--debug", help="debug=True prints the symbol table n all")
+args = argparser.parse_args()
+# print(args)
+input_file = args.input if args.input is not None else "test.go"
+
+debug = args.debug if args.debug is not None else False
+
 
 root = ScopeTree(None, scopeName="global")
 curr_scope = root
@@ -164,6 +175,8 @@ def p_type_decl(p):
     p[0] = container()
     if p[2] in curr_scope.typeTable:
         p[2] = curr_scope.typeTable[p[2]]["type"]
+    if type(p[2])==container():
+        p[2].name = p[1]
     curr_scope.insert_type(p[1], p[2])
 
 def p_simple_stmt(p):
@@ -181,12 +194,13 @@ def p_simple_stmt(p):
             raise_out_of_bounds_error(p[1].value+p[3].value,
                 "error in short var decl/assignment")
         if p[2] == ":=" :
+            raise_general_error("\n := is not implemented by us. sorry! \n")
             pass
         elif p[2] == "=" :
             p[0] = container()
-            for expr in p[1].value:
-                if curr_scope.lookup_by_uniq_id(expr.value)["is_var"]==0:
-                    raise_typerror(expr.value, ": Can't assign to a constant")
+            # for expr in p[1].value:
+            #     if curr_scope.lookup_by_uniq_id(expr.value)["is_var"]==0:
+            #         raise_typerror(expr.value, ": Can't assign to a constant")
             p[0].code += p[1].code
             p[0].code += p[3].code
             for i in range(len(p[1].value)):
@@ -199,6 +213,7 @@ def p_simple_stmt(p):
                     # new_place = curr_scope.new_temp()
                     p[0].code.append(UOP(dst=expr.value,op="inttofloat",arg1=valexpr.value))
                 else :
+                    print(expr.type, "-can't be assigned-", valexpr.type, "-value")
                     raise_typerror(p[1].value, "in assignment : operands are different type")
                 p[0].type = "void"
 
@@ -631,8 +646,25 @@ def p_pexpr(p):
     elif len(p)==4 :
         if p[1] == "(" :
             p[0] = p[2]
-        else : # struct access
-            pass
+        else : # here comes the struct GOD and the worst code
+            if p[1].type != "structure":
+                raise_general_error("\nDOT can be used only with structures \n")
+            lookup_result = p[1].extra
+            if p[3] not in lookup_result["field_list"]:
+                raise_general_error("\n"+"Are you sure "+p[3]+" is a field in structure "+lookup_result["name"] + "\n")
+            p[0].type = lookup_result["field_list"][p[3]].type
+            # find the address/offset first
+            new_place = curr_scope.new_temp(type="int")
+            p[0].value = new_place
+            temp=0
+            for f in lookup_result["field_list"]:
+                if f == p[3]:
+                    break
+                else:
+                    temp += lookup_result["field_list"][f].size
+            p[0].code.append(BOP(dst=new_place,op="int+",arg1=p[1].value,arg2=str(temp)))
+
+
     else : # array access
         # TODO : check if declared, bound check
         if p[3].type != "int" :
@@ -852,11 +884,11 @@ def p_error(p):
 parser = yacc.yacc()
 
 
-with open("test.go", "r") as f:
+with open(input_file, "r") as f:
     data = f.read()
 result = parser.parse(data)
 
-three_ac = print_scopeTree(root,source_root,flag=True)
+three_ac = print_scopeTree(root,source_root,flag=debug)
 print("-"*20 + "START 3AC" + "-"*20)
 print(three_ac)
 print("-"*21 + "END 3AC" + "-"*21)
