@@ -76,7 +76,7 @@ def p_var_decl(p):
     if len(p)==5:
         # check length of decllist and ExprList
         if len(p[1].value) != len(p[4].value):
-            raise_out_of_bounds_error(p[1].value ,
+            raise_out_of_bounds_error(p[1].value,
                 "different number of variables and expressions")
         p[0].code = p[4].code
         # all types on right must be same as Type
@@ -127,7 +127,7 @@ def p_decl_name_list(p):
         p[0] = container(value=[p[1]])
     else:
         p[0] = p[1]
-        p[0].value.append(p[3].value)
+        p[0].value.append(p[3])
 
 def p_const_decl(p):
     '''ConstDecl : DeclNameList Type AGN ExprList'''
@@ -384,7 +384,7 @@ def p_begin_func(p):
 def p_parameters(p):
     '''Parameters : LPRN RPRN
                   | LPRN ParamList RPRN'''
-    if len(p)==2 :
+    if len(p)==3 :
         p[0] = container()
         p[0].type = list()
     else :
@@ -408,6 +408,7 @@ def p_dvar_decl(p):
         p[0].type = [p[1]]
     else :
         p[0] = p[1]
+    # print(p[1].type)
 
 def p_func_body(p):
     '''FuncBody : SEMCLN
@@ -509,7 +510,7 @@ def p_expr_list(p):
     else:
         p[0] = p[1]
         p[0].value.append(p[3])
-        p[0].code = p[1].code + p[3].code
+        p[0].code += p[3].code
 
 def p_basic_lit(p):
     '''BasicLit : INTEGER_LIT
@@ -517,7 +518,6 @@ def p_basic_lit(p):
                 | STRING_LIT'''
     if type(p[1]) == int:
         p[0] = container(type="int", value=p[1])
-        # print("INTEGER_LIT")
     elif type(p[1]) == float:
         p[0] = container(type="float", value=p[1])
     else :
