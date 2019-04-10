@@ -215,9 +215,9 @@ def print_scopeTree(node,source_root,flag=False):
     temp = node
     if flag :
         print("")
-        print("me:", temp.identity)
+        print(temp.identity["name"])
         for i in temp.children:
-            print("child:", i.identity)
+            print("child:", i.identity["name"])
         print("symbolTable:")
         for var, val in temp.symbolTable.items():
             print(var, val)

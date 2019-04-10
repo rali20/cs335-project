@@ -396,25 +396,19 @@ def p_parameters(p):
     if len(p)==3 :
         p[0] = container()
         p[0].type = list()
-        # print(p[0])
     else :
         p[0] = p[2]
-    print(p[0])
 
 def p_param_list(p):
     '''ParamList : ParamDecl
                  | ParamList COMMA ParamDecl'''
     if len(p)==2 :
         p[0] = p[1]
-        # p[0] = container()
-        # p[0].value = p[1].value
-        # p[0].type = p[1].type
     else :
         p[0] = p[1]
         p[0].type += p[3].type
         p[0].value += p[3].value
         p[0].code += p[3].code
-    print("Parameter List: ", p[0].value)
 
 def p_param_Decl(p):
     '''ParamDecl : IDENT Type'''
@@ -620,15 +614,16 @@ def p_pexpr(p):
              | LPRN Expr RPRN
              | PExpr DOT IDENT
              | PExpr LSQR Expr RSQR'''
-    # print("PExpr",p.__dict__)
+    global curr_scope
+    p[0] = container()
     if len(p)==2 :
         if str(p.slice[1]) == "Name":
-            p[0] = container()
             lookup_result = curr_scope.lookup(p[1])
             if lookup_result is not None:
                 # p[0].value = p[1] #name is a string
                 p[0].value = lookup_result["uniq_id"]
                 p[0].type = lookup_result["type"]
+                p[0].extra = lookup_result
             else:
                 raise_general_error("undeclared variable: " + p[1])
         else :
@@ -638,6 +633,27 @@ def p_pexpr(p):
             p[0] = p[2]
         else : # struct access
             pass
+    else : # array access
+        # TODO : check if declared, bound check
+        if p[3].type != "int" :
+            raise_typerror(p[3],"index has to be int")
+        p[0].code += p[3].code
+        access_code = list()
+        if p[1].type == "array" :
+            base_size = curr_scope.sizeof(p[1].extra["base"])
+            new_place = curr_scope.new_temp(type="int")
+            new_place1 = curr_scope.new_temp(type="int")
+            new_place2 = curr_scope.new_temp(type="int")
+            access_code.append(BOP(dst=new_place,arg1=p[3].value,op="int*",arg2=base_size))
+            access_code.append(BOP(dst=new_place1,arg1=p[1].value,op="int+",arg2=new_place))
+            access_code.append(UOP(dst=new_place2,op="*",arg1=new_place1))
+            p[0].value = new_place2
+            p[0].type = p[1].extra["base"]
+        else :
+            raise_typerror(p[1],"type mismatch trying to access array")
+        # for now
+        p[0].code += access_code
+
 
 def p_composite_lit(p):
 	'''CompositeLit : OtherType LitVal'''
