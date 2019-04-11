@@ -658,9 +658,11 @@ def p_pexpr(p):
         if p[1] == "(" :
             p[0] = p[2]
         else : # here comes the struct GOD and the worst code
+            p[0].code += p[1].code
             if p[1].type != "structure":
                 raise_general_error("\nDOT can be used only with structures \n")
             lookup_result = p[1].extra
+            print(lookup_result)
             if p[3] not in lookup_result["field_list"]:
                 raise_general_error("\n"+"Are you sure "+p[3]+" is a field in structure "+lookup_result["name"] + "\n")
             p[0].type = lookup_result["field_list"][p[3]].type
@@ -678,6 +680,7 @@ def p_pexpr(p):
 
     else : # array access
         # TODO : check if declared, bound check
+        p[0].code += p[1].code
         if p[3].type != "int" :
             raise_typerror(p[3],"index has to be int")
         p[0].code += p[3].code
@@ -848,11 +851,24 @@ def p_uexpr(p):
                     raise_typerror(p, "in unary expression : " + p[1]
                         + " operator takes int or float operands only" )
             elif p[1] == "*" :
+                # dereferencing the pointer
                 if p[2].type == "pointer" :
                     p[0].code.append(UOP(dst=new_place,
                         op=p[1],arg1=p[2].value))
-                    p[0].type = p[2].extra["base"]
+                    base = p[2].extra["base"]
+                    typ=None
+                    if base in curr_scope.typeTable:
+                        if type(curr_scope.typeTable[base]["type"])==container:
+                            typ = curr_scope.typeTable[base]["type"].type
+                        else:
+                            typ = curr_scope.typeTable[base]["type"]
+                    else:
+                        typ = base
+                    p[0].type = typ
                     p[0].extra = p[2].extra
+                    if typ=="structure":
+                        p[0].extra["field_list"] = curr_scope.typeTable[base]["type"].extra["field_list"]
+                    print(p[0].extra)
                 else :
                     raise_typerror(p, "in unary expression : " + p[1]
                         + " operator takes pointer type operands only" )

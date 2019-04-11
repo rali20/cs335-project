@@ -70,7 +70,7 @@ class ScopeTree:
     def sizeof(self,typ):
         if typ in self.typeTable:
             return self.typeTable["size"]
-        if typ=="int" or typ=="float" or typ=="string" or "pointer":
+        if typ=="int" or typ=="float" or typ=="string" or typ=="pointer":
             return 4 #string is considered to be pointer
         elif type(typ)==container:
             size=0
