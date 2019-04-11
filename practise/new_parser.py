@@ -217,12 +217,22 @@ def p_simple_stmt(p):
             for i in range(len(p[1].value)):
                 expr = p[1].value[i]
                 valexpr = p[3].value[i]
+                flag = False
+                if "dereference" in expr.extra :
+                    flag = expr.extra["dereference"]
                 if expr.type == valexpr.type :
                     if expr.type in set({"int","float","string"}) :
-                        p[0].code.append(ASN(dst=expr.value,arg1=valexpr.value))
+                        if not flag :
+                            p[0].code.append(ASN(dst=expr.value,arg1=valexpr.value))
+                        else :
+                            p[0].code.append(PVA(dst=expr.value,arg1=valexpr.value))
                 elif (expr.type == "float") and (valexpr.type == "int") :
-                    # new_place = curr_scope.new_temp()
-                    p[0].code.append(UOP(dst=expr.value,op="inttofloat",arg1=valexpr.value))
+                    if not flag :
+                        p[0].code.append(UOP(dst=expr.value,op="inttofloat",arg1=valexpr.value))
+                    else :
+                        new_place = curr_scope.new_temp(type=valexpr.type)
+                        p[0].code.append(UOP(dst=new_place,op="inttofloat",arg1=valexpr.value))
+                        p[0].code.append(PVA(dst=expr.value,arg1=new_place))
                 else :
                     print(expr.type, "-can't be assigned-", valexpr.type, "-value")
                     raise_typerror(p[1].value, "in assignment : operands are different type")
@@ -356,6 +366,7 @@ def p_type(p):
 			| ArrayType
             | PtrType
 			| LPRN Type RPRN'''
+    global curr_scope
     if len(p)==2:
         p[0] = p[1]
     else:
@@ -516,7 +527,6 @@ def p_ptr_type(p):
     p[0] = container()
     p[0].type = "pointer"
     p[0].extra["base"] = p[2]
-    p[0].value = "*"+p[2]
 
 def p_ocomma(p):
     '''OComma : empty
@@ -658,7 +668,9 @@ def p_pexpr(p):
         if p[1] == "(" :
             p[0] = p[2]
         else : # here comes the struct GOD and the worst code
+            p[0].code += p[1].code
             if p[1].type != "structure":
+                print(p[1].type)
                 raise_general_error("\nDOT can be used only with structures \n")
             lookup_result = p[1].extra
             if p[3] not in lookup_result["field_list"]:
@@ -680,6 +692,7 @@ def p_pexpr(p):
         # TODO : check if declared, bound check
         if p[3].type != "int" :
             raise_typerror(p[3],"index has to be int")
+        p[0].code += p[1].code
         p[0].code += p[3].code
         access_code = list()
         if p[1].type == "array" :
@@ -692,6 +705,7 @@ def p_pexpr(p):
             access_code.append(UOP(dst=new_place2,op="*",arg1=new_place1))
             p[0].value = new_place2
             p[0].type = p[1].extra["base"]
+            p[0].extra["dereference"] = True
         else :
             raise_typerror(p[1],"type mismatch trying to access array")
         # for now
@@ -829,18 +843,20 @@ def p_uexpr(p):
         p[0] = container()
         p[0].code = p[0].code
         if p[1] != "+" :
-            new_place = curr_scope.new_temp(type=p[2].type)# TEMP:
-            p[0].value = new_place
             if (p[1] == "!") :
                 if p[2].type == "int" :
+                    new_place = curr_scope.new_temp(type="int")
                     p[0].code.append(UOP(dst=new_place,
                         op=p[1],arg1=p[2].value))
                     p[0].type = "int"
+                    p[0].value = new_place
                 else :
                     raise_typerror(p, "in unary expression : " + p[1]
                         + " operator takes int operands only" )
             elif p[1] == "-" :
                 if (p[2].type == "int") or (p[2].type == "float") :
+                    new_place = curr_scope.new_temp(type=p[2].type)
+                    p[0].value = new_place
                     p[0].code.append(UOP(dst=new_place,
                         op=p[1],arg1=p[2].value))
                     p[0].type = p[2].type
@@ -849,10 +865,13 @@ def p_uexpr(p):
                         + " operator takes int or float operands only" )
             elif p[1] == "*" :
                 if p[2].type == "pointer" :
+                    new_place = curr_scope.new_temp(type=p[2].extra["base"])
+                    p[0].value = new_place
                     p[0].code.append(UOP(dst=new_place,
                         op=p[1],arg1=p[2].value))
                     p[0].type = p[2].extra["base"]
                     p[0].extra = p[2].extra
+                    p[0].extra["dereference"] = True
                 else :
                     raise_typerror(p, "in unary expression : " + p[1]
                         + " operator takes pointer type operands only" )

@@ -69,8 +69,8 @@ class ScopeTree:
 
     def sizeof(self,typ):
         if typ in self.typeTable:
-            return self.typeTable["size"]
-        if typ=="int" or typ=="float" or typ=="string" or "pointer":
+            return self.typeTable[typ]["size"]
+        if typ=="int" or typ=="float" or typ=="string" or typ=="pointer":
             return 4 #string is considered to be pointer
         elif type(typ)==container:
             size=0
@@ -176,6 +176,13 @@ class ASN(Tac):
         super().__init__(arg1=arg1,dst=dst)
     def __str__(self):
         return " ".join([self.dst,"=",str(self.arg1)])
+
+class PVA(Tac):
+    '''Pointer Value Assignment -> * dst = arg1'''
+    def __init__(self,arg1,dst):
+        super().__init__(arg1=arg1,dst=dst)
+    def __str__(self):
+        return " ".join(["*",self.dst,"=",str(self.arg1)])
 
 class CBR(Tac):
     '''Conditional Branch -> if arg1 op arg2 goto dst'''
