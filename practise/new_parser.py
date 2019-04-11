@@ -20,7 +20,12 @@ args = argparser.parse_args()
 # print(args)
 input_file = args.input if args.input is not None else "test.go"
 
-debug = args.debug if args.debug is not None else False
+debug = False
+if args.debug == "True":
+    debug = True
+
+
+
 
 
 root = ScopeTree(None, scopeName="global")
@@ -128,6 +133,12 @@ def p_var_decl(p):
                     size = curr_scope.sizeof(p[2])
                     p[1].value[i] = curr_scope.insert(p[1].value[i],type=typ,
                         field_list=field_list,size=size,is_var=1)
+                elif p[2].type=="pointer":
+                    typ="pointer"
+                    base = p[2].extra["base"]
+                    size = curr_scope.sizeof(p[2])
+                    p[1].value[i] = curr_scope.insert(p[1].value[i],type=typ,
+                        base=base,size=size,is_var=1)
             else:
                 size = curr_scope.sizeof(p[2])
                 p[1].value[i] = curr_scope.insert(p[1].value[i],type=p[2],
@@ -815,7 +826,8 @@ def p_uexpr(p):
     if len(p)==2:
         p[0] = p[1]
     else:
-        p[0] = p[2]
+        p[0] = container()
+        p[0].code = p[0].code
         if p[1] != "+" :
             new_place = curr_scope.new_temp(type=p[2].type)# TEMP:
             p[0].value = new_place
@@ -839,8 +851,8 @@ def p_uexpr(p):
                 if p[2].type == "pointer" :
                     p[0].code.append(UOP(dst=new_place,
                         op=p[1],arg1=p[2].value))
-                    p[0].type = p[2].extra["base"].type
-                    p[0].extra = p[2].extra["base"].extra
+                    p[0].type = p[2].extra["base"]
+                    p[0].extra = p[2].extra
                 else :
                     raise_typerror(p, "in unary expression : " + p[1]
                         + " operator takes pointer type operands only" )

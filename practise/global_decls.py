@@ -70,7 +70,7 @@ class ScopeTree:
     def sizeof(self,typ):
         if typ in self.typeTable:
             return self.typeTable["size"]
-        if typ=="int" or typ=="float" or typ=="string":
+        if typ=="int" or typ=="float" or typ=="string" or "pointer":
             return 4 #string is considered to be pointer
         elif type(typ)==container:
             size=0
@@ -81,6 +81,8 @@ class ScopeTree:
             elif typ.type=="array":
                 len = typ.extra["length"]
                 return len*self.sizeof(typ.extra["base"])
+            elif typ.type=="pointer":
+                return 4 #assuming we have 32 bit architecture
 
 
     def find_uniq_id(self, id):
