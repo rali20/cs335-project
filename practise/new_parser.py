@@ -883,13 +883,10 @@ def p_uexpr(p):
                         typ = base
                     p[0].type = typ
                     p[0].extra = p[2].extra
-<<<<<<< HEAD
                     p[0].extra["dereference"] = True
-=======
                     if typ=="structure":
                         p[0].extra["field_list"] = curr_scope.typeTable[base]["type"].extra["field_list"]
                     print(p[0].extra)
->>>>>>> 7deaa200dbe50ac3e8dfd52f4b74aed5cccfb241
                 else :
                     raise_typerror(p, "in unary expression : " + p[1]
                         + " operator takes pointer type operands only" )
