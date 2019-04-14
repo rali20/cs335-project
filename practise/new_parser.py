@@ -212,7 +212,6 @@ def p_simple_stmt(p):
             # for expr in p[1].value:
             #     if curr_scope.lookup_by_uniq_id(expr.value)["is_var"]==0:
             #         raise_typerror(expr.value, ": Can't assign to a constant")
-            p[0].code += p[1].code
             p[0].code += p[3].code
             for i in range(len(p[1].value)):
                 expr = p[1].value[i]
@@ -223,13 +222,17 @@ def p_simple_stmt(p):
                 if expr.type == valexpr.type :
                     if expr.type in set({"int","float","string"}) :
                         if not flag :
+                            p[0].code += expr.code
                             p[0].code.append(ASN(dst=expr.value,arg1=valexpr.value))
                         else :
+                            p[0].code += expr.code[:-1]
                             p[0].code.append(PVA(dst=expr.value,arg1=valexpr.value))
                 elif (expr.type == "float") and (valexpr.type == "int") :
                     if not flag :
+                        p[0].code += expr.code
                         p[0].code.append(UOP(dst=expr.value,op="inttofloat",arg1=valexpr.value))
                     else :
+                        p[0].code += expr.code[:-1]
                         new_place = curr_scope.new_temp(type=valexpr.type)
                         p[0].code.append(UOP(dst=new_place,op="inttofloat",arg1=valexpr.value))
                         p[0].code.append(PVA(dst=expr.value,arg1=new_place))
@@ -372,12 +375,6 @@ def p_type(p):
     else:
         p[0] = p[2]
 
-def p_other_type(p):
-    '''OtherType : ArrayType
-				 | PtrType
-				 | StructType'''
-    p[0] = p[1]
-
 def p_array_type(p):
     '''ArrayType : LSQR Expr RSQR Type'''
     p[0] = container()
@@ -398,6 +395,7 @@ def p_func_decl(p):
     p[7]["scope"].identity["name"] = p[2]
     global curr_scope
     if p[6] is None :
+        p[0] = container()
         if not curr_scope.lookup(p[2]) :
             curr_scope.insert(p[2], type="func", arg_list=p[4].type,
                 ret_type=p[5].type, is_var=0)
@@ -451,10 +449,24 @@ def p_param_Decl(p):
     '''ParamDecl : IDENT Type'''
     global curr_scope
     p[0] = container()
+    typ = None
+    if type(p[2])==container:
+        typ = p[2].type
+    else:
+        typ = p[2]
     p[0].value = [p[1]]
-    p[0].type = [p[2]]
+    p[0].type = [typ]
+
+    base,length,field_list=None,None,None
+    if typ=="array":
+        base = p[2].extra["base"]
+        length = p[2].extra["length"]
+    elif typ=="structure":
+        field_list = p[2].extra["field_list"]
+    elif typ=="pointer":
+        base = p[2].extra["base"]
     size = curr_scope.sizeof(p[2])
-    curr_scope.insert(id=p[1], type=p[2], size=size)
+    curr_scope.insert(id=p[1],type=typ,base=base,length=length,size=size,is_var=1,field_list=field_list)
 
 def p_func_body(p):
     '''FuncBody : SEMCLN
@@ -527,10 +539,6 @@ def p_ptr_type(p):
     p[0] = container()
     p[0].type = "pointer"
     p[0].extra["base"] = p[2]
-
-def p_ocomma(p):
-    '''OComma : empty
-              | COMMA'''
 
 def p_osemi(p):
     '''OSemi : empty
@@ -646,7 +654,6 @@ def p_pexpr(p):
     '''PExpr : Name
              | BasicLit
              | FuncCall
-             | CompositeLit
              | LPRN Expr RPRN
              | PExpr DOT IDENT
              | PExpr LSQR Expr RSQR'''
@@ -673,7 +680,7 @@ def p_pexpr(p):
                 print(p[1].type)
                 raise_general_error("\nDOT can be used only with structures \n")
             lookup_result = p[1].extra
-            print(lookup_result)
+            # print(lookup_result)
             if p[3] not in lookup_result["field_list"]:
                 raise_general_error("\n"+"Are you sure "+p[3]+" is a field in structure "+lookup_result["name"] + "\n")
             p[0].type = lookup_result["field_list"][p[3]].type
@@ -712,26 +719,6 @@ def p_pexpr(p):
             raise_typerror(p[1],"type mismatch trying to access array")
         # for now
         p[0].code += access_code
-
-
-def p_composite_lit(p):
-	'''CompositeLit : OtherType LitVal'''
-
-def p_lit_val(p):
-	'''LitVal : LCURL RCURL
-			  | LCURL ElementList OComma RCURL '''
-
-def p_element_list(p):
-	'''ElementList : KeyedElement
-				   | ElementList COMMA KeyedElement'''
-
-def p_keyed_element(p):
-	'''KeyedElement : Element
-					| FieldName COLON Element'''
-
-def p_element(p):
-	'''Element : Expr
-			   | LitVal'''
 
 def p_func_call(p):
     '''FuncCall : Name LPRN RPRN
@@ -886,7 +873,7 @@ def p_uexpr(p):
                     p[0].extra["dereference"] = True
                     if typ=="structure":
                         p[0].extra["field_list"] = curr_scope.typeTable[base]["type"].extra["field_list"]
-                    print(p[0].extra)
+                    # print(p[0].extra)
                 else :
                     raise_typerror(p, "in unary expression : " + p[1]
                         + " operator takes pointer type operands only" )

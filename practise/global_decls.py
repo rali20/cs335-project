@@ -49,7 +49,8 @@ class ScopeTree:
     def insert(self, id, type, is_var=1, arg_list=None,field_list=None,
                 size=0, ret_type=None, length=None, base=None):
         if id in self.symbolTable:
-            raise_general_error(id+": Already declared")
+            if self.symbolTable[id]["type"] != "func" :
+                raise_general_error(id+": Already declared")
         self.symbolTable[id] = {"type":type, "base":base, "is_var":is_var,
             "size":size,"arg_list":arg_list,"field_list":field_list,
             "ret_type":ret_type,"length":length, "name":id}
@@ -70,6 +71,8 @@ class ScopeTree:
     def sizeof(self,typ):
         if typ in self.typeTable:
             return self.typeTable[typ]["size"]
+        if typ in self.symbolTable:
+            return self.symbolTable[typ]["size"]
         if typ=="int" or typ=="float" or typ=="string" or typ=="pointer":
             return 4 #string is considered to be pointer
         elif type(typ)==container:
