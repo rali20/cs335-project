@@ -82,12 +82,8 @@ def p_var_decl(p):
                | DeclNameList Type AGN ExprList'''
     global curr_scope
     p[0] = container()
-    # incase type is declared to be some basic type e.g type new_int int;
-    if p[2] in curr_scope.typeTable:
-        p[2] = curr_scope.typeTable[p[2]]["type"]
-
     # TypeList for FuncDecl
-    p[0].type = [p[2]]*len(p[1].value)
+    p[0].type = [p[2].type]*len(p[1].value)
 
     if len(p)==5:
         # check length of decllist and ExprList
@@ -97,21 +93,10 @@ def p_var_decl(p):
         p[0].code = p[4].code
         # all types on right must be same as Type
         for i in range(len(p[4].value)):
-            if type(p[2])==container:
-                typ = p[2].type
-                base = p[2].extra["base"]
-                length = p[2].extra["length"]
-                size=curr_scope.sizeof(p[2])
-                p[1].value[i] = curr_scope.insert(p[1].value[i],
-                    type=typ, base=base, length=length,size=size,is_var=1)
-            else:
-                size = curr_scope.sizeof(p[2])
-                p[1].value[i] = curr_scope.insert(p[1].value[i], type=p[2], size=size, is_var=1)
             exp = p[4].value[i]
-            if (p[2] != exp.type):
+            if (p[2].type != exp.type):
                 # check if it is float = int case
-                if exp.type=="int" and p[2]=="float":
-                    exp.type = "float"
+                if  p[2].type.name=="float" and exp.type.name=="int":
                     p[0].code.append(UOP(dst=p[1].value[i], op="inttofloat", arg1=exp.value))
                 else:
                     raise_typerror(p[1].value,  "type mis-match in var declaration")
@@ -119,30 +104,7 @@ def p_var_decl(p):
                 p[0].code.append(ASN(dst=p[1].value[i], arg1=exp.value))
     else:
         for i in range(len(p[1].value)):
-            if type(p[2])==container:
-                if p[2].type=="array":
-                    typ = "array"
-                    base = p[2].extra["base"]
-                    length = p[2].extra["length"]
-                    size = curr_scope.sizeof(p[2])
-                    p[1].value[i] = curr_scope.insert(p[1].value[i],type=typ,
-                        base=base,length=length,size=size,is_var=1)
-                elif p[2].type=="structure":
-                    typ = "structure"
-                    field_list = p[2].extra["field_list"]
-                    size = curr_scope.sizeof(p[2])
-                    p[1].value[i] = curr_scope.insert(p[1].value[i],type=typ,
-                        field_list=field_list,size=size,is_var=1)
-                elif p[2].type=="pointer":
-                    typ="pointer"
-                    base = p[2].extra["base"]
-                    size = curr_scope.sizeof(p[2])
-                    p[1].value[i] = curr_scope.insert(p[1].value[i],type=typ,
-                        base=base,size=size,is_var=1)
-            else:
-                size = curr_scope.sizeof(p[2])
-                p[1].value[i] = curr_scope.insert(p[1].value[i],type=p[2],
-                    size=size,is_var=1)
+            curr_scope.insert(p[1].value[i],type=p[2].type,is_var=1)
 
 def p_decl_name_list(p):
     '''DeclNameList : Name
@@ -184,11 +146,9 @@ def p_type_decl(p):
     '''TypeDecl : TypeDeclName Type'''
     global curr_scope
     p[0] = container()
-    if p[2] in curr_scope.typeTable:
-        p[2] = curr_scope.typeTable[p[2]]["type"]
-    if type(p[2])==container():
-        p[2].name = p[1]
-    curr_scope.insert_type(p[1], p[2])
+    if p[2].type in curr_scope.typeTable:
+        p[2].type = curr_scope.typeTable[p[2].type]["type"]
+    curr_scope.insert_type(p[1], p[2].type)
 
 def p_simple_stmt(p):
     '''SimpleStmt : Expr
@@ -212,7 +172,6 @@ def p_simple_stmt(p):
             # for expr in p[1].value:
             #     if curr_scope.lookup_by_uniq_id(expr.value)["is_var"]==0:
             #         raise_typerror(expr.value, ": Can't assign to a constant")
-            p[0].code += p[1].code
             p[0].code += p[3].code
             for i in range(len(p[1].value)):
                 expr = p[1].value[i]
@@ -221,22 +180,24 @@ def p_simple_stmt(p):
                 if "dereference" in expr.extra :
                     flag = expr.extra["dereference"]
                 if expr.type == valexpr.type :
-                    if expr.type in set({"int","float","string"}) :
+                    if expr.type.name in set({"int","float","string"}) :
                         if not flag :
+                            p[0].code += expr.code
                             p[0].code.append(ASN(dst=expr.value,arg1=valexpr.value))
                         else :
+                            p[0].code += expr.code[:-1]
                             p[0].code.append(PVA(dst=expr.value,arg1=valexpr.value))
-                elif (expr.type == "float") and (valexpr.type == "int") :
+                elif (expr.type.name == "float") and (valexpr.type.name == "int") :
                     if not flag :
+                        p[0].code += expr.code
                         p[0].code.append(UOP(dst=expr.value,op="inttofloat",arg1=valexpr.value))
                     else :
+                        p[0].code += expr.code[:-1]
                         new_place = curr_scope.new_temp(type=valexpr.type)
                         p[0].code.append(UOP(dst=new_place,op="inttofloat",arg1=valexpr.value))
                         p[0].code.append(PVA(dst=expr.value,arg1=new_place))
                 else :
-                    print(expr.type, "-can't be assigned-", valexpr.type, "-value")
                     raise_typerror(p[1].value, "in assignment : operands are different type")
-                p[0].type = "void"
 
 def p_stmt_block(p):
     '''StmtBlock : LCURL StartScope StmtList EndScope RCURL'''
@@ -251,10 +212,8 @@ def p_for_header(p):
                  | OSimpleStmt'''
     p[0] = container()
     if len(p)==2 :
-        p[0].extra["loop_type"] = "while"
         p[0].value = [container(),p[1],container()]
     else :
-        p[0].extra["loop_type"] = "for"
         p[0].value = [p[1],p[3],p[5]]
 
 def p_for_body(p):
@@ -280,7 +239,6 @@ def p_for_body(p):
 def p_for_stmt(p):
     '''ForStmt : FOR beginFor ForBody endFor'''
     p[0] = p[3]
-    p[0].type = "for_stmt"
     p[4].identity["type"] = "ForLoop"
 
 def p_begin_for(p):
@@ -367,39 +325,37 @@ def p_type(p):
             | PtrType
 			| LPRN Type RPRN'''
     global curr_scope
+    p[0] = container()
     if len(p)==2:
+        if str(p.slice[1]) == "Name" :
+            if p[1] in curr_scope.typeTable :
+                p[0].type = curr_scope.typeTable[p[1]]
+            else :
+                p[0].type = dType(name=p[1])
         p[0] = p[1]
     else:
         p[0] = p[2]
 
-def p_other_type(p):
-    '''OtherType : ArrayType
-				 | PtrType
-				 | StructType'''
-    p[0] = p[1]
-
 def p_array_type(p):
     '''ArrayType : LSQR Expr RSQR Type'''
     p[0] = container()
-    p[0].type = "array"
-    p[0].extra["length"] = p[2].value
-    p[0].extra["base"] = p[4]
+    p[0].code = p[4].code + p[2].code
+    p[0].type = dType(name="array",length=p[2].value,base=p[4].type)
 
 def p_struct_type(p):
     '''StructType : STRUCT LCURL StructDeclList OSemi RCURL'''
     # StructDeclList is a dictionary {ident:container(type=)}
-    p[0] = container(type="structure")
-    if len(p)==6:
-        p[0].extra["field_list"] = p[3]
-        # example: type = p[0].extra["field_list"]["field_name"].type
+    p[0] = container()
+    p[0].type = dType(name="structure",field_dict=p[3])
 
 def p_func_decl(p):
     '''FuncDecl : FUNC IDENT beginFunc Parameters FuncRes FuncBody endFunc'''
     p[7]["scope"].identity["name"] = p[2]
     global curr_scope
     if p[6] is None :
+        p[0] = container()
         if not curr_scope.lookup(p[2]) :
-            curr_scope.insert(p[2], type="func", arg_list=p[4].type,
+            curr_scope.insert(p[2], type=dType(name="func"), arg_list=p[4].type,
                 ret_type=p[5].type, is_var=0)
         else :
             raise_typerror(p[2], "identifier type mismatch/ function redeclared")
@@ -410,7 +366,7 @@ def p_func_decl(p):
         if lookup_result :
             if lookup_result["is_var"] :
                 raise_typerror(p[2], "Function Defined multiple times")
-        curr_scope.insert(p[2], type="func", arg_list=p[4].type,ret_type=p[5].type, is_var=1)
+        curr_scope.insert(p[2], type=dType(name="func"), arg_list=p[4].type,ret_type=p[5].type, is_var=1)
         p[0] = container()
         p[0].code.append(LBL(arg1=p[2]))
         p[0].code.append(CMD(op="BeginFunc",arg1=p[7]["offset"]))
@@ -425,7 +381,6 @@ def p_begin_func(p):
     offset = 0
     # curr_scope.reset_offset()
     curr_scope = curr_scope.makeChildren()
-
 
 def p_parameters(p):
     '''Parameters : LPRN RPRN
@@ -452,9 +407,8 @@ def p_param_Decl(p):
     global curr_scope
     p[0] = container()
     p[0].value = [p[1]]
-    p[0].type = [p[2]]
-    size = curr_scope.sizeof(p[2])
-    curr_scope.insert(id=p[1], type=p[2], size=size)
+    p[0].type = [p[2].type]
+    curr_scope.insert(id=p[1],type=p[2].type)
 
 def p_func_body(p):
     '''FuncBody : SEMCLN
@@ -473,8 +427,8 @@ def p_func_res(p):
         p[0].type = None
         curr_scope.insert_type("#return",None)
     else :
-        p[0].type = p[1]
-        curr_scope.insert_type("#return",p[1])
+        p[0].type = p[1].type
+        curr_scope.insert_type("#return",p[1].type)
 
 def p_end_func(p):
     '''endFunc :'''
@@ -484,20 +438,18 @@ def p_end_func(p):
     # offset gives you the total space used by any (scope+it's scildren scopes)
     curr_scope = curr_scope.parent
 
-
 def p_struct_decl_list(p):
     '''StructDeclList : StructDecl
                       | StructDeclList SEMCLN StructDecl'''
-    # StructDeclList is a dictionary {ident:container(type=type, size=)}
     global curr_scope
     if len(p)==2:
         p[0] = {}
         for field_name in p[1].value:
-            p[0][field_name] = container(type=p[1].type, size=curr_scope.sizeof(p[1].type))
+            p[0][field_name] = p[1].type
     else:
         p[0] = p[1]
         for field_name in p[3].value:
-            p[0][field_name] = container(type=p[3].type, size=curr_scope.sizeof(p[3].type))
+            p[0][field_name] = p[3].type
 
 def p_struct_decl(p):
     '''StructDecl : FieldList Type'''
@@ -505,12 +457,12 @@ def p_struct_decl(p):
     # FieldList is a list
     p[0] = container()
     p[0].value = p[1]
-    p[0].type = p[2]
+    p[0].type = p[2].type
 
 def p_label_name(p):
     '''LabelName : NewName'''
     global curr_scope
-    curr_scope.insert(p[1], type="label", is_var=0)
+    curr_scope.insert(p[1], type=dType(name="label"), is_var=0)
     p[0] = p[1]
 
 def p_new_name(p):
@@ -523,14 +475,8 @@ def p_field_name(p):
 
 def p_ptr_type(p):
     '''PtrType : MUL Type'''
-    # ptrType is a object
     p[0] = container()
-    p[0].type = "pointer"
-    p[0].extra["base"] = p[2]
-
-def p_ocomma(p):
-    '''OComma : empty
-              | COMMA'''
+    p[0].type = dType(name="array",base=p[2])
 
 def p_osemi(p):
     '''OSemi : empty
@@ -563,11 +509,11 @@ def p_basic_lit(p):
                 | FLOAT_LIT
                 | STRING_LIT'''
     if type(p[1]) == int:
-        p[0] = container(type="int", value=p[1])
+        p[0] = container(type=dType(name="int"), value=p[1])
     elif type(p[1]) == float:
-        p[0] = container(type="float", value=p[1])
+        p[0] = container(type=dType(name="float"), value=p[1])
     else :
-        p[0] = container(type="string", value=p[1])
+        p[0] = container(type=dType(name="string"), value=p[1])
 
 def p_stmt_list(p):
     '''StmtList : empty
@@ -586,7 +532,6 @@ def p_field_list(p):
     else:
         p[0] = p[1]
         p[0].append(p[3])
-
 
 def p_name(p):
     '''Name : IDENT'''
@@ -620,15 +565,12 @@ def p_non_decl_stmt(p):
         elif p[1] == "goto" :
             p[0].code.append(CMD(op="goto",arg1=p[2]))
         elif p[1] == "break" :
-            # p[0].type = "break"
             brk_lbl = curr_scope.find_label("#forAfter")
             p[0].code.append(CMD(op="goto",arg1=brk_lbl))
         elif p[1] == "continue" :
-            # p[0].type = "continue"
             cont_lbl = curr_scope.find_label("#forUpdate")
             p[0].code.append(CMD(op="goto",arg1=cont_lbl))
         else : # return
-            # p[0].type = "return"
             p[0] = container()
             ret_type = curr_scope.typeTable["#return"]["type"]
             if ret_type == p[2].type :
@@ -640,13 +582,10 @@ def p_non_decl_stmt(p):
             else :
                 raise_typerror(p[1],"type mismatch")
 
-
-
 def p_pexpr(p):
     '''PExpr : Name
              | BasicLit
              | FuncCall
-             | CompositeLit
              | LPRN Expr RPRN
              | PExpr DOT IDENT
              | PExpr LSQR Expr RSQR'''
@@ -659,7 +598,6 @@ def p_pexpr(p):
                 # p[0].value = p[1] #name is a string
                 p[0].value = lookup_result["uniq_id"]
                 p[0].type = lookup_result["type"]
-                p[0].extra = lookup_result
             else:
                 raise_general_error("undeclared variable: " + p[1])
         else :
@@ -667,71 +605,46 @@ def p_pexpr(p):
     elif len(p)==4 :
         if p[1] == "(" :
             p[0] = p[2]
-        else : # here comes the struct GOD and the worst code
+        else : # structure access
             p[0].code += p[1].code
-            if p[1].type != "structure":
-                print(p[1].type)
-                raise_general_error("\nDOT can be used only with structures \n")
-            lookup_result = p[1].extra
-            print(lookup_result)
-            if p[3] not in lookup_result["field_list"]:
-                raise_general_error("\n"+"Are you sure "+p[3]+" is a field in structure "+lookup_result["name"] + "\n")
-            p[0].type = lookup_result["field_list"][p[3]].type
+            if p[1].type.name != "structure":
+                raise_general_error("DOT can be used only with structures")
+            field_dict = p[1].type.field_dict
+            if p[3] not in field_dict:
+                raise_general_error(p[3]+" is not a field in structure " + field_dict)
+            p[0].type = field_dict[p[3]]
             # find the address/offset first
-            new_place = curr_scope.new_temp(type="int")
+            new_place = curr_scope.new_temp(type=dType(name="int"))
             p[0].value = new_place
-            temp=0
-            for f in lookup_result["field_list"]:
-                if f == p[3]:
+            field_offset=0
+            for field_name in field_dict:
+                if field_name == p[3]:
                     break
                 else:
-                    temp += lookup_result["field_list"][f].size
+                    field_offset += field_dict[field_name].size
             p[0].code.append(BOP(dst=new_place,op="int+",arg1=p[1].value,arg2=str(temp)))
-
-
     else : # array access
-        # TODO : check if declared, bound check
         p[0].code += p[1].code
-        if p[3].type != "int" :
+        if p[3].type.name != "int" :
             raise_typerror(p[3],"index has to be int")
         p[0].code += p[1].code
         p[0].code += p[3].code
         access_code = list()
-        if p[1].type == "array" :
-            base_size = curr_scope.sizeof(p[1].extra["base"])
-            new_place = curr_scope.new_temp(type="int")
-            new_place1 = curr_scope.new_temp(type="int")
-            new_place2 = curr_scope.new_temp(type="int")
+        if p[1].type.name == "array" :
+            base_size = p[1].type.base.size
+            new_place = curr_scope.new_temp(type=dType(name="int"))
+            new_place1 = curr_scope.new_temp(type=dType(name="int"))
+            new_place2 = curr_scope.new_temp(type=dType(name="int"))
             access_code.append(BOP(dst=new_place,arg1=p[3].value,op="int*",arg2=base_size))
             access_code.append(BOP(dst=new_place1,arg1=p[1].value,op="int+",arg2=new_place))
             access_code.append(UOP(dst=new_place2,op="*",arg1=new_place1))
             p[0].value = new_place2
-            p[0].type = p[1].extra["base"]
+            p[0].type = p[1].type.base
             p[0].extra["dereference"] = True
         else :
-            raise_typerror(p[1],"type mismatch trying to access array")
+            raise_typerror(p[1].type.name,"type mismatch trying to access array")
         # for now
         p[0].code += access_code
-
-
-def p_composite_lit(p):
-	'''CompositeLit : OtherType LitVal'''
-
-def p_lit_val(p):
-	'''LitVal : LCURL RCURL
-			  | LCURL ElementList OComma RCURL '''
-
-def p_element_list(p):
-	'''ElementList : KeyedElement
-				   | ElementList COMMA KeyedElement'''
-
-def p_keyed_element(p):
-	'''KeyedElement : Element
-					| FieldName COLON Element'''
-
-def p_element(p):
-	'''Element : Expr
-			   | LitVal'''
 
 def p_func_call(p):
     '''FuncCall : Name LPRN RPRN
@@ -744,10 +657,10 @@ def p_func_call(p):
     if len(p)==4 :
         if lookup_result["ret_type"] is None :
             p[0].code.append(CMD(op="call",arg1=p[1]))
-            p[0].type = "void"
+            p[0].type = dType(name="void")
         else :
             p[0].type = lookup_result["ret_type"]
-            new_place = curr_scope.new_temp(lookup_result["ret_type"])
+            new_place = curr_scope.new_temp(type=lookup_result["ret_type"])
             p[0].code.append(UOP(dst=new_place,op="call",arg1=p[1]))
             p[0].value = new_place
     else :
@@ -762,15 +675,15 @@ def p_func_call(p):
             expr = expr_list[i]
             if type_list[i] != expr.type :
                 raise_typerror(p[3],"type mismatch"+p[1])
-            pop_size += curr_scope.sizeof(expr.type)
+            pop_size += curr_scope.sizeof(expr)
             p[0].code.append(CMD(op="push_param",arg1=expr.value))
         if lookup_result["ret_type"] is None :
             p[0].code.append(CMD(op="call",arg1=p[1]))
             p[0].value = None
-            p[0].type = "void"
+            p[0].type = dType(name="void")
         else :
             p[0].type = lookup_result["ret_type"]
-            new_place = curr_scope.new_temp(lookup_result["ret_type"])
+            new_place = curr_scope.new_temp(type=lookup_result["ret_type"])
             p[0].code.append(UOP(dst=new_place,op="call",arg1=p[1]))
             p[0].value = new_place
         p[0].code.append(CMD(op="pop_param",arg1=pop_size))
@@ -801,37 +714,38 @@ def p_expr(p):
     else:
         p[0] = container()
         p[0].code = p[1].code + p[3].code
-        if p[1].type=="float" or p[3].type=="float":
-            new_place = curr_scope.new_temp(type="float")
+        if p[1].type.name=="float" or p[3].type.name=="float":
+            new_place = curr_scope.new_temp(type=dType(name="float"))
         else:
-            new_place = curr_scope.new_temp(type="int")
+            new_place = curr_scope.new_temp(type=dType(name="int"))
         p[0].value = new_place
         # int only operators
         if p[2] in set({"||","&&","&","|","<<",">>","%"}):
-            if p[1].type == "int" and p[3].type == "int":
+            if p[1].type.name == "int" and p[3].type.name == "int":
                  p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op=p[2],arg2=p[3].value))
-                 p[0].type = "int"
+                 p[0].type = p[1].type
             else :
                 raise_typerror(p, "in expression : "
                     + p[2] + " operator takes int operands only" )
         # int or float
         else : #p[2] in set({"+","-","*","/","<",">",">=","<=","!=","=="}):
-            if ((p[1].type == "int" and p[3].type == "int")
-                    or (p[1].type == "float" and p[3].type == "float")) :
-                p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op=p[1].type+str(p[2]),arg2=p[3].value))
+            if ((p[1].type.name == "int" and p[3].type.name == "int")
+                    or (p[1].type.name == "float" and p[3].type.name == "float")) :
+                p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op=p[1].type.name+str(p[2]),arg2=p[3].value))
                 p[0].type = p[1].type
                 # print("BOP:int only",p[0].code[0])
-            elif p[1].type == "int" and p[3].type == "float" :
-                new_place1 = curr_scope.new_temp(type="float")
+            elif p[1].type.name == "int" and p[3].type.name == "float" :
+                new_place1 = curr_scope.new_temp(type=p[3].type)
                 p[0].code.append(UOP(dst=new_place1,op="inttofloat",arg1=p[1].value))
                 p[0].code.append(BOP(dst=new_place,arg1=new_place1,op="float"+str(p[2]),arg2=p[3].value))
-                p[0].type = "float"
-            elif p[1].type == "float" and p[3].type == "int" :
-                new_place1 = curr_scope.new_temp(type="float")
+                p[0].type = p[3].type
+            elif p[1].type.name == "float" and p[3].type.name == "int" :
+                new_place1 = curr_scope.new_temp(type=p[1].type)
                 p[0].code.append(UOP(dst=new_place1,op="inttofloat",arg1=p[3].value))
                 p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op="float"+str(p[2]),arg2=new_place1))
-                p[0].type = "float"
+                p[0].type = p[1].type
             else :
+                print(p[1].type,p[3].type)
                 raise_typerror(p, "in expression : "
                     + p[2] + " operator takes int or float operands only" )
 
@@ -842,59 +756,44 @@ def p_uexpr(p):
     if len(p)==2:
         p[0] = p[1]
     else:
-        p[0] = container()
-        p[0].code = p[0].code
+        p[0] = p[2]
         if p[1] != "+" :
             if (p[1] == "!") :
-                if p[2].type == "int" :
-                    new_place = curr_scope.new_temp(type="int")
+                if p[2].type.name == "int" :
+                    new_place = curr_scope.new_temp(type=dType(name="int"))
                     p[0].code.append(UOP(dst=new_place,
                         op=p[1],arg1=p[2].value))
-                    p[0].type = "int"
+                    p[0].type = dType(name="int")
                     p[0].value = new_place
                 else :
                     raise_typerror(p, "in unary expression : " + p[1]
                         + " operator takes int operands only" )
             elif p[1] == "-" :
-                if (p[2].type == "int") or (p[2].type == "float") :
-                    new_place = curr_scope.new_temp(type=p[2].type)
+                if (p[2].type.name == "int") or (p[2].type.name == "float") :
+                    new_place = curr_scope.new_temp(type=dType(name=p[2].type.name))
                     p[0].value = new_place
                     p[0].code.append(UOP(dst=new_place,
                         op=p[1],arg1=p[2].value))
-                    p[0].type = p[2].type
+                    p[0].type = dType(name=p[2].type.name)
                 else :
                     raise_typerror(p, "in unary expression : " + p[1]
                         + " operator takes int or float operands only" )
             elif p[1] == "*" :
                 # dereferencing the pointer
-                if p[2].type == "pointer" :
-                    new_place = curr_scope.new_temp(type=p[2].extra["base"])
+                if p[2].type.name == "pointer" :
+                    new_place = curr_scope.new_temp(type=p[2].type.base)
                     p[0].value = new_place
                     p[0].code.append(UOP(dst=new_place,
                         op=p[1],arg1=p[2].value))
-                    base = p[2].extra["base"]
-                    typ=None
-                    if base in curr_scope.typeTable:
-                        if type(curr_scope.typeTable[base]["type"])==container:
-                            typ = curr_scope.typeTable[base]["type"].type
-                        else:
-                            typ = curr_scope.typeTable[base]["type"]
-                    else:
-                        typ = base
-                    p[0].type = typ
-                    p[0].extra = p[2].extra
+                    p[0].type = p[2].type.base
                     p[0].extra["dereference"] = True
-                    if typ=="structure":
-                        p[0].extra["field_list"] = curr_scope.typeTable[base]["type"].extra["field_list"]
-                    print(p[0].extra)
                 else :
                     raise_typerror(p, "in unary expression : " + p[1]
                         + " operator takes pointer type operands only" )
             else : # address of -> &
                     p[0].code.append(UOP(dst=new_place,
                         op=p[1],arg1=p[2].value))
-                    p[0].type = "pointer"
-                    p[0].extra["base"] = p[2]
+                    p[0].type = dType(name="pointer",base=p[2].type)
 
 def p_unary_op(p):
     '''UnaryOp : ADD
