@@ -103,7 +103,7 @@ def t_IDENT(t):
 
 @lex.TOKEN(string_lit)
 def t_STRING_LIT(t):
-    t.value = t.value[1:-1]
+    t.value = t.value#[1:-1]
     return t
 
 @lex.TOKEN(float_lit)

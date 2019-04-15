@@ -21,7 +21,7 @@ global offset
 offset = 0
 
 class container(object):
-    def __init__(self, name=None,type=None, value=None, size=None):
+    def __init__(self, name=None,type=None, value=None, size=0):
         self.name = name
         self.code = list()
         self.extra = dict()
@@ -54,12 +54,14 @@ class ScopeTree:
             scope_count += 1
         self.identity["type"] = scope_type
 
-    def insert(self,id,type,is_var=1,arg_list=None,ret_type=None):
+    def insert(self, id, type, is_var=1, arg_list=None,field_list=None,size=0, ret_type=None, length=None, base=None):
         if id in self.symbolTable:
             if self.symbolTable[id]["type"].name != "func" :
                 raise_general_error(id+": Already declared")
-        self.symbolTable[id] = {"type":type,  "is_var":is_var,
-            "arg_list":arg_list,"ret_type":ret_type, "name":id}
+        if size == 0:
+            size = self.sizeof(type)
+        self.symbolTable[id] = {"type":type, "base":base, "is_var":is_var,"size":size,"arg_list":arg_list,
+            "field_list":field_list,"ret_type":ret_type,"length":length, "name":id}
         global uniq_id
         self.symbolTable[id]["uniq_id"] = "$var"+str(uniq_id)
         global uniq_id_to_real
@@ -75,23 +77,28 @@ class ScopeTree:
         return to_return
 
     def sizeof(self,typ):
+        # print("============",typ.name)
         if typ in self.typeTable:
             return self.typeTable[typ]["size"]
         if typ in self.symbolTable:
             return self.symbolTable[typ]["size"]
-        if typ=="int" or typ=="float" or typ=="string" or typ=="pointer":
+        if typ.name=="int" or typ.name=="float" or typ.name=="string" or typ.name=="pointer":
             return 4 #string is considered to be pointer
-        elif type(typ)==container:
-            size=0
-            if typ.type=="structure":
-                for field in typ.extra["field_list"]:
-                    size += typ.extra["field_list"][field].size
-                return size
-            elif typ.type=="array":
-                len = typ.extra["length"]
-                return len*self.sizeof(typ.extra["base"])
-            elif typ.type=="pointer":
-                return 4 #assuming we have 32 bit architecture
+        '''Assert type is always a dtype object'''
+        assert type(typ)==dType, "type should always be a dtype object, instead got "+str(type(typ))
+
+        size=0
+        if typ.name=="structure":
+            for field in typ.field_dict:
+                size += typ.field_dict[field].size
+            return size
+        elif typ.name=="array":
+            len = typ.length
+            return len*typ.base.size
+        elif typ.name=="pointer":
+            return 4 #assuming we have 32 bit architecture
+        print("what the f**k is this: ", typ.name)
+        return 0
 
 
     def find_uniq_id(self, id):
@@ -99,8 +106,11 @@ class ScopeTree:
 
 
     def insert_type(self, new_type, Type):
-        self.typeTable[new_type] = {"type":Type}
-        self.typeTable[new_type]["size"] = self.sizeof(Type)
+        # print("inserting type:", new_type, Type)
+        assert type(Type)==dType, "type should always be a dtype object"
+        self.typeTable[new_type] = Type
+        # self.typeTable[new_type] = {"type":Type}
+        # self.typeTable[new_type]["size"] = self.sizeof(Type)
 
     def makeChildren(self, childName=None):
         child = ScopeTree(self, childName)

@@ -21,11 +21,8 @@ args = argparser.parse_args()
 input_file = args.input if args.input is not None else "test.go"
 
 debug = False
-if args.debug == "True":
+if args.debug.lower() == "true":
     debug = True
-
-
-
 
 
 root = ScopeTree(None, scopeName="global")
@@ -81,9 +78,8 @@ def p_var_decl(p):
     '''VarDecl : DeclNameList Type
                | DeclNameList Type AGN ExprList'''
     global curr_scope
+    # print("===========", p[2])
     p[0] = container()
-    # TypeList for FuncDecl
-    p[0].type = [p[2].type]*len(p[1].value)
 
     if len(p)==5:
         # check length of decllist and ExprList
@@ -93,12 +89,14 @@ def p_var_decl(p):
         p[0].code = p[4].code
         # all types on right must be same as Type
         for i in range(len(p[4].value)):
+            p[1].value[i] = curr_scope.insert(p[1].value[i],type=p[2].type,is_var=1)
             exp = p[4].value[i]
-            if (p[2].type != exp.type):
+            if (p[2].type.name != exp.type.name):
                 # check if it is float = int case
                 if  p[2].type.name=="float" and exp.type.name=="int":
                     p[0].code.append(UOP(dst=p[1].value[i], op="inttofloat", arg1=exp.value))
                 else:
+                    print(p[2].type.name, exp.type.name)
                     raise_typerror(p[1].value,  "type mis-match in var declaration")
             else:
                 p[0].code.append(ASN(dst=p[1].value[i], arg1=exp.value))
@@ -179,7 +177,7 @@ def p_simple_stmt(p):
                 flag = False
                 if "dereference" in expr.extra :
                     flag = expr.extra["dereference"]
-                if expr.type == valexpr.type :
+                if expr.type.name == valexpr.type.name :
                     if expr.type.name in set({"int","float","string"}) :
                         if not flag :
                             p[0].code += expr.code
@@ -332,21 +330,29 @@ def p_type(p):
                 p[0].type = curr_scope.typeTable[p[1]]
             else :
                 p[0].type = dType(name=p[1])
-        p[0] = p[1]
+                p[0].type.size = curr_scope.sizeof(p[0].type)
+        else:
+            p[0] = p[1]
     else:
         p[0] = p[2]
+    # print(p[0])
 
 def p_array_type(p):
     '''ArrayType : LSQR Expr RSQR Type'''
+    global curr_scope
     p[0] = container()
     p[0].code = p[4].code + p[2].code
     p[0].type = dType(name="array",length=p[2].value,base=p[4].type)
+    p[0].type.size = curr_scope.sizeof(p[0].type)
 
 def p_struct_type(p):
     '''StructType : STRUCT LCURL StructDeclList OSemi RCURL'''
-    # StructDeclList is a dictionary {ident:container(type=)}
+    # StructDeclList is a dictionary {ident:dType()}
+    global curr_scope
     p[0] = container()
     p[0].type = dType(name="structure",field_dict=p[3])
+    size = curr_scope.sizeof(p[0].type)
+    p[0].type.size = size
 
 def p_func_decl(p):
     '''FuncDecl : FUNC IDENT beginFunc Parameters FuncRes FuncBody endFunc'''
@@ -476,7 +482,8 @@ def p_field_name(p):
 def p_ptr_type(p):
     '''PtrType : MUL Type'''
     p[0] = container()
-    p[0].type = dType(name="array",base=p[2])
+    p[0].type = dType(name="pointer",base=p[2].type)
+    # TODO why array here? why not pointer?
 
 def p_osemi(p):
     '''OSemi : empty
@@ -622,7 +629,7 @@ def p_pexpr(p):
                     break
                 else:
                     field_offset += field_dict[field_name].size
-            p[0].code.append(BOP(dst=new_place,op="int+",arg1=p[1].value,arg2=str(temp)))
+            p[0].code.append(BOP(dst=new_place,op="int+",arg1=p[1].value,arg2=str(field_offset)))
     else : # array access
         p[0].code += p[1].code
         if p[3].type.name != "int" :
