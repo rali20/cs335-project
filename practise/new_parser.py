@@ -21,7 +21,7 @@ args = argparser.parse_args()
 input_file = args.input if args.input is not None else "test.go"
 
 debug = False
-if args.debug.lower() == "true":
+if args.debug == "true":
     debug = True
 
 
@@ -310,7 +310,7 @@ def p_else_if_list(p):
 def p_else_if(p):
     '''ElifStmt : ELIF Expr StmtBlock'''
     p[0] = container()
-    p[0].value = [p[3],p[4]]
+    p[0].value = [p[2],p[3]]
 
 def p_else_stmt(p):
     '''ElseStmt : ELSE StmtBlock'''
@@ -430,8 +430,8 @@ def p_func_res(p):
     global curr_scope
     p[0] = container()
     if str(p.slice[1]) == "empty" :
-        p[0].type = None
-        curr_scope.insert_type("#return",None)
+        p[0].type = dType()
+        curr_scope.insert_type("#return",dType())
     else :
         p[0].type = p[1].type
         curr_scope.insert_type("#return",p[1].type)
@@ -579,14 +579,15 @@ def p_non_decl_stmt(p):
             p[0].code.append(CMD(op="goto",arg1=cont_lbl))
         else : # return
             p[0] = container()
-            ret_type = curr_scope.typeTable["#return"]["type"]
-            if ret_type == p[2].type :
-                if ret_type is None :
+            ret_type = curr_scope.typeTable["#return"]
+            if ret_type.name == p[2].type.name :
+                if ret_type.name is None :
                     p[0].code.append(OP(op="return"))
                 else :
                     p[0].code += p[2].code
                     p[0].code.append(CMD(op="return",arg1=p[2].value))
             else :
+                print(ret_type.name,p[2].type.name, p[2].type.__dict__,ret_type.__dict__,p[2].type==ret_type)
                 raise_typerror(p[1],"type mismatch")
 
 def p_pexpr(p):
@@ -680,9 +681,10 @@ def p_func_call(p):
         pop_size = 0
         for i in range(num_args-1,-1,-1):
             expr = expr_list[i]
-            if type_list[i] != expr.type :
-                raise_typerror(p[3],"type mismatch"+p[1])
-            pop_size += curr_scope.sizeof(expr)
+            if type_list[i].name != expr.type.name :
+                print(type_list[i].__dict__,expr.type.__dict__)
+                raise_typerror(type_list[i],"type mismatch "+p[1])
+            pop_size += curr_scope.sizeof(expr.type)
             p[0].code.append(CMD(op="push_param",arg1=expr.value))
         if lookup_result["ret_type"] is None :
             p[0].code.append(CMD(op="call",arg1=p[1]))
@@ -798,6 +800,7 @@ def p_uexpr(p):
                     raise_typerror(p, "in unary expression : " + p[1]
                         + " operator takes pointer type operands only" )
             else : # address of -> &
+                    new_place = curr_scope.new_temp(type=dType(name="pointer",base=p[2].type))
                     p[0].code.append(UOP(dst=new_place,
                         op=p[1],arg1=p[2].value))
                     p[0].type = dType(name="pointer",base=p[2].type)
@@ -813,6 +816,7 @@ def p_unary_op(p):
 def p_empty(p):
     '''empty : '''
     p[0] = container()
+    p[0].type = dType()
 
 def p_start_scope(p):
     '''StartScope : empty'''

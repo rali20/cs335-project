@@ -97,7 +97,6 @@ class ScopeTree:
             return len*typ.base.size
         elif typ.name=="pointer":
             return 4 #assuming we have 32 bit architecture
-        print("what the f**k is this: ", typ.name)
         return 0
 
 
