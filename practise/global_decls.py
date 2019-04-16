@@ -1,7 +1,7 @@
 ## Coding Conventions
 # 'p' variables in p_<fun> are container() type
 # possible scopes: package, global, functions, ....
-
+import pprint
 
 global curr_scope
 curr_scope = None
@@ -68,6 +68,7 @@ class ScopeTree:
         uniq_id_to_real["$var"+str(uniq_id)] = [self, id]
 
         global offset
+        print(id,self.symbolTable[id])
         self.symbolTable[id]["offset"] = offset
         offset += self.symbolTable[id]["size"]
         self.temp_offset += self.symbolTable[id]["size"]
@@ -94,6 +95,7 @@ class ScopeTree:
             return size
         elif typ.name=="array":
             len = typ.length
+            print("=========returning",len*typ.base.size )
             return len*typ.base.size
         elif typ.name=="pointer":
             return 4 #assuming we have 32 bit architecture
@@ -117,12 +119,15 @@ class ScopeTree:
         return child
 
     def lookup(self, id):
+        print("lookup for ",id, "in scope of ", self.identity["name"])
         if id in self.symbolTable:
             return self.symbolTable[id]
         else:
             if self.parent is None:
+                print("Not found ",id)
                 return None
             return self.parent.lookup(id)
+        # print("Not found ",id)
 
     def lookup_by_uniq_id(self,uniq_id):
         global uniq_id_to_real
@@ -132,7 +137,7 @@ class ScopeTree:
     def new_temp(self, type=None,size=None):
         global temp_count
         temp_count += 1
-        temp_id = "$T"+str(temp_count)
+        temp_id = "_T"+str(temp_count)
         if size is None:
             size=self.sizeof(type)
         self.insert(temp_id,type=type,size=size)
@@ -141,7 +146,7 @@ class ScopeTree:
     def new_label(self):
         global label_count
         label_count += 1
-        return "#L"+str(label_count)
+        return "_L"+str(label_count)
 
     def insert_label(self, id=None, value=None):
         if id in self.labelTable:
@@ -149,7 +154,7 @@ class ScopeTree:
         self.labelTable[id]=value
 
     def find_label(self, id=None):
-        print(self.identity,self.labelTable)
+        # print(self.identity,self.labelTable)
         if id in self.labelTable:
             return self.labelTable[id]
         else:
@@ -170,7 +175,7 @@ class LBL(Tac):
     '''Label Operation -> arg1 :'''
     def __init__(self, arg1):
         super().__init__(arg1=arg1)
-
+        self.type = "label"
     def __str__(self):
         return " ".join([str(self.arg1),":"])
 
@@ -178,6 +183,7 @@ class BOP(Tac):
     '''Binary Operation -> dst = arg1 op arg2'''
     def __init__(self, op, arg1, arg2, dst):
         super().__init__(op=op,arg1=arg1,arg2=arg2,dst=dst)
+        self.type = "bop"
     def __str__(self):
         return " ".join([self.dst,"=",str(self.arg1),self.op,str(self.arg2)])
 
@@ -185,20 +191,23 @@ class UOP(Tac):
     '''Unary Operation -> dst = op arg1'''
     def __init__(self,dst,op,arg1):
         super().__init__(dst=dst,op=op,arg1=arg1)
+        self.type = "uop"
     def __str__(self):
         return " ".join([self.dst,"=",self.op,str(self.arg1)])
 
 class ASN(Tac):
     '''Assignment Operation -> dst = arg1'''
-    def __init__(self,arg1,dst):
-        super().__init__(arg1=arg1,dst=dst)
+    def __init__(self,arg1,dst,op="="):
+        super().__init__(arg1=arg1,dst=dst,op=op)
+        self.type = "asn"
     def __str__(self):
-        return " ".join([self.dst,"=",str(self.arg1)])
+        return " ".join([self.dst,self.op,str(self.arg1)])
 
 class PVA(Tac):
     '''Pointer Value Assignment -> * dst = arg1'''
     def __init__(self,arg1,dst):
         super().__init__(arg1=arg1,dst=dst)
+        self.type = "pva"
     def __str__(self):
         return " ".join(["*",self.dst,"=",str(self.arg1)])
 
@@ -206,6 +215,7 @@ class CBR(Tac):
     '''Conditional Branch -> if arg1 op arg2 goto dst'''
     def __init__(self, op, arg1, arg2, dst):
         super().__init__(op=op,arg1=arg1,arg2=arg2,dst=dst)
+        self.type = "cbr"
     def __str__(self):
         return " ".join(["if",str(self.arg1),self.op,str(self.arg2),"goto",self.dst])
 
@@ -213,6 +223,7 @@ class OP(Tac):
     '''Operation -> op'''
     def __init__(self,op):
         super().__init__(op=op)
+        self.type = "op"
     def __str__(self):
         return self.op
 
@@ -220,6 +231,7 @@ class CMD(Tac):
     '''Command -> op arg1'''
     def __init__(self,op,arg1):
         super().__init__(op=op,arg1=arg1)
+        self.type = "cmd"
     def __str__(self):
         return " ".join([self.op,str(self.arg1)])
 
@@ -246,16 +258,20 @@ def print_scopeTree(node,source_root,flag=False):
         print(temp.identity["name"])
         for i in temp.children:
             print("child:", i.identity["name"])
-        print("symbolTable:")
+        print('\033[95m'+"symbolTable:")
         for var, val in temp.symbolTable.items():
-            print(var, val)
-        print("TypeTable:")
+            print('\033[92m'+var+'\033[0m')
+            pprint.pprint(val)
+        print('\033[95m'+"TypeTable:")
         for new_type, Type in temp.typeTable.items():
-            print(new_type, Type)
+            print('\033[92m'+new_type+'\033[0m')
+            pprint.pprint(Type)
 
         for i in temp.children:
             print_scopeTree(i,source_root, flag=flag)
     three_ac = ""
-    for line in source_root.code :
-        three_ac = three_ac + str(line) + "\n"
+    for func in source_root :
+        three_ac +=   "-"*5 +" " + func + " " + "-"*5 + "\n"
+        for line in source_root[func] :
+            three_ac = three_ac + str(line) + "\n"
     return three_ac[:-1]

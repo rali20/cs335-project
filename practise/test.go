@@ -1,99 +1,67 @@
-type new_int int;
-type new_new_int new_int;
-var glob new_new_int;
-var naya_structure struct {
-  a,b,c int;
-  S struct{
-    p,q int;
-  };
-  arr [10]int;
-};
-
-
-type node struct{
-  a int;
-  b string;
-};
-
+// type new_int int;
+// type new_new_int new_int;
+// var glob new_new_int;
+// var naya_structure struct {
+//   a,b,c int;
+//   S struct{
+//     p,q int;
+//   };
+//   arr [10]int;
+// };
+//
+//
+// type node struct{
+//   a int;
+//   c float;
+//   b string;
+// };
+//
 // var sme node;
 
-var e,f int = 1,2;
+// var e,f float = 6,5;
 
 
-// func print();
-func main(a int, b string, c float ) int{
-    // const (
-    //   c0 = 1;  // c0 == 0
-    //   c1 = 2.0;  // c1 == 1
-    //   c2, c3 string = "amit", "yadav";  // c2 == 2
-    //   a,b int;
-    // );
-    var arr [10]int;
-    arr[2] = 1;
-    // var temp node;
-    // temp.b = "amit";
-    // var ptr *node;
-    // (*ptr).b = "amit";
-    var t *int;
-    *t = 1;
-    // var d int = 2 + 3;
-    // Here's a basic example.
-    // const e,f,g int = 1+2,2,3;
-    // var m float = 1;
-    // var arr [4] int;
-    // m = 2;
-    // var str string = "amit";
-    // var str string = "amit";
-    // str = 2;
+func print_int(n int);
+func print_str(s string);
+func read_int() int;
+func f2(n1 int,n2 int,n3 int) int{
+   return n1+n2+n3;
+}
+func f1(n1 int,n2 int,n3 int) int{
+   return f2(f2(n1,n2,n3),n2,n3);
+}
+func main(a int, b string) string{
 
-    // e = f+g;
-    // e = 10;
-    // e = 2 + 4;
-    // // c = 10;
-    // if 7%2 == 0 {
-    //     var a integer;
-    //     m = e;
-    // } else {
-    //     var b charere;
-    //     f = e + g;
+    var n int = 10;
+    print_int(n);
+    n = read_int();
+    print_int(n);
+    n = f1(9,8,7);
+    // a = 1;
+    // if a<2{
+    //   a=3;
     // }
-    // outerloop :
-    // var i,j int;
-    // // for i = 1 ; i < 10 ; i = i + 1{
-    // //   // break;
-    //   for j = i ; j < 20 ; j = j + 1{
-    //     if i%2 == 0 {
-    //         var a integer;
-    //         m = e;
-    //         // continue;
-    //     } else {
-    //         var b char;
-    //         f = e + g;
-    //         // continue outerloop;
-    //     }
-    //     e = 2 + 4;
-    //     if j%2 == 0 {
-    //       f = e*g;
-    //       break;
-    //     }
-    //     if i+j % 25 == 0{
-    //       // break outerloop;
-    //     }
-    //   }
-    // }
-    //
-    // // You can have an `if` statement without an else.
-    // if  8%4 == 0 {
-    //     const amit string="hello";
-    // }
-    // var i int;
-    // A statement can precede conditionals; any variables
-    // declared in this statement are available in all
-    // branches.
-    // if num := 9; num < 0 {
-    // } else if num < 10 {
-    //
-    // } else {
-    //     Println(num, "has multiple digits")
-    // }
+    // b = "amit";
+    // return "hello";
+    // b = a + 1;
+    // a = 2 + 3;
+    // a = 4 + a;
+    // a = b + a;
+    var arr [10] int;
+    arr[5] = 1;
+  //   var temp node;
+  //   temp.b = "amit";
+  //   var ptr *node;
+  //   (*ptr).b = "amit";
+	// var q,w,e,r,t,y int;
+	// q = 1;
+	// w=2;
+	// e=4;
+	// r=8;
+	// t=16;
+	// y=32;
+	// y = y>>q<<w>>e<<r%(q|w|e|r);
+	// t = y>>q<<w>>e<<r%15;
+	// q = q|w|e|r;
+
 }
