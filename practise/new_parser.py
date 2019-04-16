@@ -1,30 +1,15 @@
 #!/usr/bin/python3
 
-'''Assumptions till now:
-1. Arrays are declared only as arr[10]int
-and not initialized in the declaration itself.
-2.
-'''
 import sys
 import os
 import ply.yacc as yacc
 import argparse
+import pprint
 
 from lexer import *
 from global_decls import *
 
-argparser = argparse.ArgumentParser()
-argparser.add_argument("--input", help="Input go file in format [file.go]")
-argparser.add_argument("--debug", help="debug=True prints the symbol table n all")
-args = argparser.parse_args()
-# print(args)
-input_file = args.input if args.input is not None else "test.go"
-
-debug = False
-if args.debug == "true":
-    debug = True
-
-
+global root
 root = ScopeTree(None, scopeName="global")
 curr_scope = root
 
@@ -44,8 +29,11 @@ precedence = (
 
 def p_start(p):
     '''start : SourceFile'''
-    global source_root
-    source_root = p[1]
+    global root
+    p[1].extra["__init__"] = p[1].code
+    p[0] = root,p[1].extra
+    print("="*12+"Extra")
+    print()
 
 def p_source_file(p):
     '''SourceFile : empty
@@ -55,17 +43,30 @@ def p_source_file(p):
 def p_decl_list(p):
     '''DeclList : TopLevelDecl
     			| TopLevelDecl DeclList'''
+    p[0] = container()
     if len(p) == 2:
-        p[0] = p[1]
+        if p[1].type == "FuncDecl":
+            p[0].extra = p[1].extra
+        else :
+            p[0].code = p[1].code
     else :
-        p[0] =  p[1]
-        p[0].code += p[2].code
-
+        p[0] = p[2]
+        if p[1].type == "FuncDecl":
+            p[0].extra = {**p[0].extra,**p[1].extra}
+        else :
+            p[0].code = p[1].code+ p[2].code
 
 def p_top_level_decl(p):
     '''TopLevelDecl : CommonDecl SEMCLN
     				| FuncDecl'''
-    p[0] = p[1]
+    p[0] = container()
+    if len(p)==2 :
+        p[0].type = "FuncDecl"
+        if p[1].extra["type"] == "defn":
+            p[0].extra[p[1].extra["name"]] = p[1].code
+    else :
+        p[0].type = "CommonDecl"
+        p[0].code = p[1].code
 
 def p_common_decl(p):
     '''CommonDecl : CONST ConstDecl
@@ -94,15 +95,17 @@ def p_var_decl(p):
             if (p[2].type.name != exp.type.name):
                 # check if it is float = int case
                 if  p[2].type.name=="float" and exp.type.name=="int":
-                    p[0].code.append(UOP(dst=p[1].value[i], op="inttofloat", arg1=exp.value))
+                    p[0].code.append(UOP(dst=p[1].value[i], op="iTf", arg1=exp.value))
                 else:
-                    print(p[2].type.name, exp.type.name)
+                    # print(p[2].type.name, exp.type.name)
                     raise_typerror(p[1].value,  "type mis-match in var declaration")
             else:
                 p[0].code.append(ASN(dst=p[1].value[i], arg1=exp.value))
     else:
         for i in range(len(p[1].value)):
-            curr_scope.insert(p[1].value[i],type=p[2].type,is_var=1)
+            p[1].value[i] = curr_scope.insert(p[1].value[i],type=p[2].type,is_var=1)
+            # if p[2].type.name=="array":
+            #     p[0].code.append(CMD(op="assign_addr", arg1=p[1].value[i]))
 
 def p_decl_name_list(p):
     '''DeclNameList : Name
@@ -130,7 +133,7 @@ def p_const_decl(p):
             # check if it is float = int case
             if exp.type=="int" and p[2]=="float":
                 exp.type = "float"
-                p[0].code.append(UOP(dst=p[1].value[i], op="inttofloat", arg1=exp.value))
+                p[0].code.append(UOP(dst=p[1].value[i], op="iTf", arg1=exp.value))
             else:
                 raise_typerror(p[1].value,  "type mis-match in var declaration")
         else:
@@ -177,6 +180,7 @@ def p_simple_stmt(p):
                 flag = False
                 if "dereference" in expr.extra :
                     flag = expr.extra["dereference"]
+                    expr.value = expr.extra["left_place"]
                 if expr.type.name == valexpr.type.name :
                     if expr.type.name in set({"int","float","string"}) :
                         if not flag :
@@ -188,11 +192,11 @@ def p_simple_stmt(p):
                 elif (expr.type.name == "float") and (valexpr.type.name == "int") :
                     if not flag :
                         p[0].code += expr.code
-                        p[0].code.append(UOP(dst=expr.value,op="inttofloat",arg1=valexpr.value))
+                        p[0].code.append(UOP(dst=expr.value,op="iTf",arg1=valexpr.value))
                     else :
                         p[0].code += expr.code[:-1]
                         new_place = curr_scope.new_temp(type=valexpr.type)
-                        p[0].code.append(UOP(dst=new_place,op="inttofloat",arg1=valexpr.value))
+                        p[0].code.append(UOP(dst=new_place,op="iTf",arg1=valexpr.value))
                         p[0].code.append(PVA(dst=expr.value,arg1=new_place))
                 else :
                     raise_typerror(p[1].value, "in assignment : operands are different type")
@@ -342,7 +346,7 @@ def p_array_type(p):
     global curr_scope
     p[0] = container()
     p[0].code = p[4].code + p[2].code
-    p[0].type = dType(name="array",length=p[2].value,base=p[4].type)
+    p[0].type = dType(name="array",length=p[2].extra["array_length"],base=p[4].type)
     p[0].type.size = curr_scope.sizeof(p[0].type)
 
 def p_struct_type(p):
@@ -356,10 +360,11 @@ def p_struct_type(p):
 
 def p_func_decl(p):
     '''FuncDecl : FUNC IDENT beginFunc Parameters FuncRes FuncBody endFunc'''
+    p[0] = container()
     p[7]["scope"].identity["name"] = p[2]
     global curr_scope
+    p[0].extra["name"] = p[2]
     if p[6] is None :
-        p[0] = container()
         if not curr_scope.lookup(p[2]) :
             curr_scope.insert(p[2], type=dType(name="func"), arg_list=p[4].type,
                 ret_type=p[5].type, is_var=0)
@@ -367,25 +372,26 @@ def p_func_decl(p):
             raise_typerror(p[2], "identifier type mismatch/ function redeclared")
         if p[4].code :
             raise_general_error(p[2], "Syntax error")
+        p[0].extra["type"] = "decl"
     else :
         lookup_result =  curr_scope.lookup(p[2])
         if lookup_result :
             if lookup_result["is_var"] :
                 raise_typerror(p[2], "Function Defined multiple times")
         curr_scope.insert(p[2], type=dType(name="func"), arg_list=p[4].type,ret_type=p[5].type, is_var=1)
-        p[0] = container()
-        p[0].code.append(LBL(arg1=p[2]))
+        # p[0].code.append(LBL(arg1="func "+p[2]))
         p[0].code.append(CMD(op="BeginFunc",arg1=p[7]["offset"]))
         p[0].code += p[4].code
         p[0].code += p[6].code
         p[0].code.append(OP(op="EndFunc"))
+        p[0].extra["type"] = "defn"
 
 def p_begin_func(p):
     '''beginFunc :'''
     global curr_scope
     global offset
     offset = 0
-    # curr_scope.reset_offset()
+    curr_scope.reset_offset()
     curr_scope = curr_scope.makeChildren()
 
 def p_parameters(p):
@@ -515,12 +521,21 @@ def p_basic_lit(p):
     '''BasicLit : INTEGER_LIT
                 | FLOAT_LIT
                 | STRING_LIT'''
+    global curr_scope
     if type(p[1]) == int:
-        p[0] = container(type=dType(name="int"), value=p[1])
+        new_place = curr_scope.new_temp(type=dType(name="int"))
+        p[0] = container(type=dType(name="int"), value=new_place)
+        p[0].extra["array_length"] = p[1]
+        p[0].code.append(ASN(dst=new_place, arg1=p[1],op="i="))
     elif type(p[1]) == float:
-        p[0] = container(type=dType(name="float"), value=p[1])
+        new_place = curr_scope.new_temp(type=dType(name="float"))
+        p[0] = container(type=dType(name="float"), value=new_place)
+        p[0].code.append(ASN(dst=new_place, arg1=p[1],op="f="))
     else :
-        p[0] = container(type=dType(name="string"), value=p[1])
+        new_place = curr_scope.new_temp(type=dType(name="string"))
+        p[0] = container(type=dType(name="string"), value=new_place)
+        p[0].code.append(ASN(dst=new_place, arg1=p[1],op="s="))
+
 
 def p_stmt_list(p):
     '''StmtList : empty
@@ -649,6 +664,7 @@ def p_pexpr(p):
             p[0].value = new_place2
             p[0].type = p[1].type.base
             p[0].extra["dereference"] = True
+            p[0].extra["left_place"] = new_place1
         else :
             raise_typerror(p[1].type.name,"type mismatch trying to access array")
         # for now
@@ -664,7 +680,7 @@ def p_func_call(p):
         raise_general_error("undeclared function: " + p[1])
     if len(p)==4 :
         if lookup_result["ret_type"] is None :
-            p[0].code.append(CMD(op="call",arg1=p[1]))
+            p[0].code.append(CMD(op="pcall",arg1=p[1]))
             p[0].type = dType(name="void")
         else :
             p[0].type = lookup_result["ret_type"]
@@ -686,8 +702,8 @@ def p_func_call(p):
                 raise_typerror(type_list[i],"type mismatch "+p[1])
             pop_size += curr_scope.sizeof(expr.type)
             p[0].code.append(CMD(op="push_param",arg1=expr.value))
-        if lookup_result["ret_type"] is None :
-            p[0].code.append(CMD(op="call",arg1=p[1]))
+        if lookup_result["ret_type"].name is None :
+            p[0].code.append(CMD(op="pcall",arg1=p[1]))
             p[0].value = None
             p[0].type = dType(name="void")
         else :
@@ -745,12 +761,12 @@ def p_expr(p):
                 # print("BOP:int only",p[0].code[0])
             elif p[1].type.name == "int" and p[3].type.name == "float" :
                 new_place1 = curr_scope.new_temp(type=p[3].type)
-                p[0].code.append(UOP(dst=new_place1,op="inttofloat",arg1=p[1].value))
+                p[0].code.append(UOP(dst=new_place1,op="iTf",arg1=p[1].value))
                 p[0].code.append(BOP(dst=new_place,arg1=new_place1,op="float"+str(p[2]),arg2=p[3].value))
                 p[0].type = p[3].type
             elif p[1].type.name == "float" and p[3].type.name == "int" :
                 new_place1 = curr_scope.new_temp(type=p[1].type)
-                p[0].code.append(UOP(dst=new_place1,op="inttofloat",arg1=p[3].value))
+                p[0].code.append(UOP(dst=new_place1,op="iTf",arg1=p[3].value))
                 p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op="float"+str(p[2]),arg2=new_place1))
                 p[0].type = p[1].type
             else :
@@ -839,12 +855,21 @@ def p_error(p):
 
 parser = yacc.yacc()
 
+if __name__ == "__main__" :
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument("--input", help="Input go file in format [file.go]")
+    argparser.add_argument("--debug", help="debug=True prints the symbol table n all")
+    args = argparser.parse_args()
+    # print(args)
+    input_file = args.input if args.input is not None else "test.go"
 
-with open(input_file, "r") as f:
-    data = f.read()
-result = parser.parse(data)
-
-three_ac = print_scopeTree(root,source_root,flag=debug)
-print("-"*20 + "START 3AC" + "-"*20)
-print(three_ac)
-print("-"*21 + "END 3AC" + "-"*21)
+    debug = False
+    if args.debug == "true":
+        debug = True
+    with open(input_file, "r") as f:
+        data = f.read()
+    symbol_table,func_tac = parser.parse(data)
+    three_ac = print_scopeTree(symbol_table,func_tac,flag=debug)
+    print("-"*15 + "START 3AC" + "-"*15)
+    print(three_ac)
+    print("-"*16 + "END 3AC" + "-"*16)
