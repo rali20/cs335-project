@@ -4,7 +4,7 @@ import codegen_decls as assembly
 import new_parser
 import pprint,sys
 
-debug = True
+debug = False
 input_file = "test.go"
 with open(input_file,"r") as f:
     data = f.read()
@@ -23,17 +23,26 @@ for func in three_ac :
         if codetype=="cmd" :
             if op=="BeginFunc" :
                 asm.addInstr(['addi','$sp','$sp','-8'])
-                asm.addInstr(['sw','$ra','4($sp)'])
-                asm.addInstr(['sw','$fp','0($sp)'])
+                asm.addInstr(['sw','$ra','4($sp)',''])
+                asm.addInstr(['sw','$fp','0($sp)',''])
                 asm.addInstr(['move','$fp','$sp',''])
 
                 func_size = int(arg1)
                 asm.addInstr(['addi','$sp','$sp','-'+str(func_size)])
+                # store params
+                lookup_result = asm.ST.lookup(asm.currFunc)
+                num_params = len(lookup_result["arg_list"])
+                for i in range(num_params):
+                    lookup_result["arg_list"][i]
             elif op=="goto":
                 asm.addInstr(["j",arg1,"",""])
             elif op=="return":
                 r1 = asm.getReg(arg1,0)
                 asm.addInstr(["move", "$v0", r1, ""])
+                asm.addInstr(["move","$sp","$fp",""])
+                asm.addInstr(["lw","$fp","-0($sp)",""])
+                asm.addInstr(["lw","$ra","4($sp)",""])
+                asm.addInstr(["addi","$sp","$sp","8"])
                 asm.addInstr(["jr", "$ra", "",""])
             elif op=="pcall":
                 if arg1=="print_int" :
@@ -45,11 +54,11 @@ for func in three_ac :
                 else :
                     asm.addInstr(["jal",arg1,"",""])
             elif op=="push_param":
-                r1 = asm.getReg(arg1,0)
+                # r1 = asm.getReg(arg1,0)
                 dr = asm.getParamReg(arg1)
-                asm.addInstr(["move",dr,r1,""])
+                # asm.addInstr(["move",dr,r1,""])
             elif op=="pop_param":
-                pass
+                asm.paramReg = ['$a0','$a1','$a2','$a3']
             elif op=="assign_addr":
                 pass
 
@@ -57,9 +66,14 @@ for func in three_ac :
             if op=="return":
                 pass
             elif op=="EndFunc":
-                asm.addInstr(['sw','$ra','-'+str(ra_offest)+'($fp)'])
-                asm.addInstr(['la','$fp',str(main_size)+'($sp)',''])
-                asm.addInstr(['sub','$sp','$sp',str(main_size)])
+                pass
+                # asm.addInstr(["move","$sp","$fp",""])
+                # asm.addInstr(["lw","$fp","0($sp)",""])
+                # asm.addInstr(["lw","$ra","4($sp)",""])
+                # asm.addInstr(["addi","$sp","$sp","8"])
+                # asm.addInstr(['sw','$ra','-'+str(ra_offest)+'($fp)'])
+                # asm.addInstr(['la','$fp',str(main_size)+'($sp)',''])
+                # asm.addInstr(['sub','$sp','$sp',str(main_size)])
         elif codetype=="label" :
             asm.addInstr([str(arg1)+':','','',''])
 
@@ -80,13 +94,12 @@ for func in three_ac :
 
         elif codetype=="uop" :
             if op=="call" :
-                dr=asm.getReg(dst,0)
                 if arg1=="read_int" :
                     asm.addInstr(["li", "$v0","5", ""])
                     asm.addInstr(["syscall","","",""])
                 else :
                     asm.addInstr(["jal",arg1,"",""])
-                asm.addInstr(["move",dr,"$v0",""])
+                asm.addInstr(["move","$s0","$v0",""])
                 asm.storeReg(dst,0)
             else :
                 r1=asm.getReg(arg1,0)
@@ -151,7 +164,13 @@ for func in three_ac :
             dr=asm.getReg(dst,1)
             asm.addInstr(['sw',r1,'0('+dr+')',''])
 
+        elif codetype=="misc":
+            reg = "$a"+str(arg2)
+            asm.addInstr(["move", "$s0",reg,""])
+            asm.storeReg(arg1,0)
 
+asm.assembly_code["main"].append(["li","$v0","10",""])
+asm.assembly_code["main"].append(["syscall","","",""])
 print("\n\n")
 asm.printAssembly();
 # print("\n")

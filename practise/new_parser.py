@@ -32,8 +32,6 @@ def p_start(p):
     global root
     p[1].extra["__init__"] = p[1].code
     p[0] = root,p[1].extra
-    print("="*12+"Extra")
-    print()
 
 def p_source_file(p):
     '''SourceFile : empty
@@ -369,8 +367,8 @@ def p_func_decl(p):
                 ret_type=p[5].type, is_var=0)
         else :
             raise_typerror(p[2], "identifier type mismatch/ function redeclared")
-        if p[4].code :
-            raise_general_error(p[2], "Syntax error")
+        # if p[4].code :
+        #     raise_general_error(p[2], "Syntax error")
         p[0].extra["type"] = "decl"
     else :
         lookup_result =  curr_scope.lookup(p[2])
@@ -401,6 +399,9 @@ def p_parameters(p):
         p[0].type = list()
     else :
         p[0] = p[2]
+        for i in range(len(p[2].value)):
+            reg = len(p[2].value)-i-1
+            p[0].code.append(MISC(op="store", arg1=p[2].value[i], arg2=reg))
 
 def p_param_list(p):
     '''ParamList : ParamDecl
@@ -422,9 +423,10 @@ def p_param_Decl(p):
         typ = p[2].type
     else:
         typ = p[2]
-    p[0].value = [p[1]]
     p[0].type = [p[2].type]
-    curr_scope.insert(id=p[1],type=p[2].type)
+    u_id = curr_scope.insert(id=p[1],type=p[2].type)
+    p[0].value = [u_id]
+
 
 def p_func_body(p):
     '''FuncBody : SEMCLN
@@ -662,7 +664,9 @@ def p_pexpr(p):
             new_place = curr_scope.new_temp(type=dType(name="int"))
             new_place1 = curr_scope.new_temp(type=dType(name="int"))
             new_place2 = curr_scope.new_temp(type=dType(name="int"))
-            access_code.append(BOP(dst=new_place,arg1=p[3].value,op="int*",arg2=base_size))
+            base_size_temp = curr_scope.new_temp(type=dType(name="int"))
+            access_code.append(ASN(dst=base_size_temp,arg1=base_size,op="i="))
+            access_code.append(BOP(dst=new_place,arg1=p[3].value,op="int*",arg2=base_size_temp))
             access_code.append(BOP(dst=new_place1,arg1=p[1].value,op="int+",arg2=new_place))
             access_code.append(UOP(dst=new_place2,op="*",arg1=new_place1))
             p[0].value = new_place2

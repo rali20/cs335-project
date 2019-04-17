@@ -10,7 +10,7 @@ class asm:
 		self.stack = {}		# We have to variable name, value, type
 		self.new_ST = {}
 		self.unfold_tree(self.ST)
-		pprint.pprint(self.new_ST)
+		# pprint.pprint(self.new_ST)
 
 	def unfold_tree(self,root):
 		temp = root
@@ -67,12 +67,14 @@ class asm:
 		self.tempoffset = 0
 
 	def function_call(self,function):
-		print("===========", function)
+		# print("===========", function)
 		self.currFunc = function
 		self.assembly_code[function] = []
 
 	def addInstr(self,instr):
-		print(self.currFunc,instr)
+		if(len(instr)!=4):
+			print("========Size should be 4: ", instr)
+		# print(self.currFunc,instr)
 		self.assembly_code[self.currFunc].append(instr)
 
 	def flushReg(self,reg):
@@ -87,14 +89,14 @@ class asm:
 		self.addInstr(['.text','','',''])
 
 	def getReg(self,var,num):
-		print("getReg for ",var)
+		# print("getReg for ",var)
 		reg = "$s"+str(num)
 		off = self.new_ST[var]["offset"]
 		if self.new_ST[var]["type"].name=="array" or self.new_ST[var]["type"].name=="structure":
 			self.addInstr(["xor", reg,reg,""])
 			self.addInstr(["addi",reg,"$fp",str(-off)])
 			return reg
-		self.addInstr(['lw','$s0','-'+str(off)+'($fp)',''])
+		self.addInstr(['lw',reg,'-'+str(off)+'($fp)',''])
 		return reg
 
 
@@ -117,9 +119,9 @@ class asm:
 		off = self.new_ST[var]["offset"]
 		if(param_reg):
 			self.regAssignedVar[param_reg] = var
-			self.addInstr(['lw',param_reg,str(-offset)+'($fp)'],"")
+			self.addInstr(['lw',param_reg,str(-off)+'($fp)',""])
 
-			self.varInfo[var]['Reg'] = param_reg
+			# self.varInfo[var]['Reg'] = param_reg
 		else:
 			print("No more free param regs")
 		return param_reg

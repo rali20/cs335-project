@@ -68,9 +68,8 @@ class ScopeTree:
         uniq_id_to_real["$var"+str(uniq_id)] = [self, id]
 
         global offset
-        print(id,self.symbolTable[id])
-        self.symbolTable[id]["offset"] = offset
         offset += self.symbolTable[id]["size"]
+        self.symbolTable[id]["offset"] = offset
         self.temp_offset += self.symbolTable[id]["size"]
 
         to_return =  "$var"+str(uniq_id)
@@ -95,7 +94,6 @@ class ScopeTree:
             return size
         elif typ.name=="array":
             len = typ.length
-            print("=========returning",len*typ.base.size )
             return len*typ.base.size
         elif typ.name=="pointer":
             return 4 #assuming we have 32 bit architecture
@@ -119,12 +117,12 @@ class ScopeTree:
         return child
 
     def lookup(self, id):
-        print("lookup for ",id, "in scope of ", self.identity["name"])
+        # print("lookup for ",id, "in scope of ", self.identity["name"])
         if id in self.symbolTable:
             return self.symbolTable[id]
         else:
             if self.parent is None:
-                print("Not found ",id)
+                # print("Not found ",id)
                 return None
             return self.parent.lookup(id)
         # print("Not found ",id)
@@ -234,6 +232,15 @@ class CMD(Tac):
         self.type = "cmd"
     def __str__(self):
         return " ".join([self.op,str(self.arg1)])
+
+class MISC(Tac):
+    '''Command -> store $var 1'''
+    def __init__(self,op="",arg1="",arg2="",dst=""):
+        super().__init__(op=op,arg1=arg1,arg2=arg2,dst=dst)
+        self.type = "misc"
+    def __str__(self):
+        return " ".join([self.op,str(self.arg1),str(self.arg2)])
+
 
 def raise_typerror(p, s=""):
     print("Type error: ", p)

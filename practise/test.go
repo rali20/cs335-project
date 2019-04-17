@@ -30,13 +30,20 @@ func f2(n1 int,n2 int,n3 int) int{
 func f1(n1 int,n2 int,n3 int) int{
    return f2(f2(n1,n2,n3),n2,n3);
 }
+
+func addhaha(a int, b int) int{
+  return a+b;
+}
+
 func main(a int, b string) string{
 
     var n int = 10;
     print_int(n);
     n = read_int();
     print_int(n);
+    n = addhaha(n,2);
     n = f1(9,8,7);
+    print_int(n);
     // a = 1;
     // if a<2{
     //   a=3;
@@ -47,8 +54,8 @@ func main(a int, b string) string{
     // a = 2 + 3;
     // a = 4 + a;
     // a = b + a;
-    var arr [10] int;
-    arr[5] = 1;
+    // var arr [10] int;
+    // arr[5] = 1;
   //   var temp node;
   //   temp.b = "amit";
   //   var ptr *node;
