@@ -1,28 +1,69 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 import codegen_decls as assembly
 import new_parser
-import pprint,sys
+import pprint,sys,argparse
+
+
+argparser = argparse.ArgumentParser()
+argparser.add_argument("-i","--inputfile", help="Input go file like file.go")
+argparser.add_argument("-s","--sfile", help="Name of (output) mips assembly file like out.s")
+argparser.add_argument("-3","--tacfile", help="Name of 3ac file like out.tac")
+argparser.add_argument("-d","--debug",help="Prints debug info like symbol table",
+    action="store_true")
+args = argparser.parse_args()
 
 debug = False
-input_file = "tests/airthmatics.go"
-with open(input_file,"r") as f:
+if args.debug:
+    debug = True
+
+sfile = "out.s"
+if args.sfile :
+    sfile = args.sfile
+
+tacfile = "out.tac"
+if args.tacfile :
+    tacfile = args.sfile
+
+inputfile = "test.go"
+if args.inputfile :
+    inputfile = args.inputfile
+
+
+print_scope_tree = False
+print_symbol_table = False
+print_3ac = False
+if debug:
+    print_scope_tree = False
+    print_symbol_table = True
+    print_3ac = True
+
+
+
+with open(inputfile,"r") as f:
     data = f.read()
 symbol_table,three_ac = new_parser.parser.parse(data)
 
-new_parser.print_scopeTree(symbol_table,dict({}),debug)
+if print_scope_tree:
+    new_parser.print_scopeTree(symbol_table,dict({}),print_scope_tree)
 
-asm = assembly.asm(symbol_table,three_ac,debug)
-asm.print_new_ST()
+asm = assembly.asm(symbol_table,three_ac,debug=print_3ac)
+if print_symbol_table:
+    print("===========Symbol table===========")
+    asm.print_new_ST()
+    print("")
 
 def print_unimp(s):
-    print(s,": ***Unimplimented***")
-    exit()
-print("\n===========3AC==========\n")
+    print(s," : ***Unimplimented***")
+    # exit()
+
+if print_3ac:
+    print("\n===========3AC==========\n")
 for func in three_ac :
     asm.function_call(func)
     for codeline in three_ac[func] :
-        print(str(codeline))
+        if print_3ac:
+            print('\033[92m'+str(codeline)+'\033[0m')
         arg1 = codeline.arg1
         arg2 = codeline.arg2
         dst = codeline.dst
@@ -113,15 +154,16 @@ for func in three_ac :
                 asm.addInstr(["move","$s0","$v0",""])
                 asm.storeReg(dst,0)
             else :
-                r1=asm.getReg(arg1,0)
                 dr=asm.getReg(dst,1)
                 if op=="iTf" : # int-to-float
-                    pass
+                    print_unimp(op)
                 elif op=="&":
-                    pass
+                    off = asm.new_ST[arg1]["offset"]
+                    asm.addInstr(["addi",dr,"$fp",str(-off)])
                 elif op=="!":
-                    pass
+                    print_unimp(op)
                 elif op=="-":
+                    r1=asm.getReg(arg1,0)
                     asm.addInstr(['sub',dr,'$0',dr]);
                 elif op=="*":
                     asm.addInstr(['lw',dr,'0('+r1+')',''])
@@ -152,6 +194,12 @@ for func in three_ac :
                 asm.addInstr(['or',dr,r2,r1])
             elif op=="&" :
                 asm.addInstr(['and',dr,r2,r1])
+            elif op=="<<":
+                asm.addInstr(['sllv',dr,r1,r2])
+            elif op==">>":
+                asm.addInstr(['srlv',dr,r1,r2])
+            elif op=="||":
+                pass
             else :
                 print_unimp(op)
             asm.storeReg(dst,2)
@@ -177,6 +225,9 @@ for func in three_ac :
         elif codetype=="pva" :
             r1=asm.getReg(arg1,0)
             dr=asm.getReg(dst,1)
+            off = asm.new_ST[dst]["offset"]
+
+            # asm.addInstr(["addi",dr,"$fp",str(-off)])
             asm.addInstr(['sw',r1,'0('+dr+')',''])
 
         elif codetype=="misc":
@@ -192,4 +243,4 @@ for func in three_ac :
 asm.assembly_code["main"].append(["li","$v0","10",""])
 asm.assembly_code["main"].append(["syscall","","",""])
 # print("\n\n")
-asm.printAssembly();
+asm.printAssembly(sfile);

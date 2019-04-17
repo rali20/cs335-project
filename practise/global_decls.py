@@ -259,6 +259,7 @@ def raise_general_error(s):
 
 
 def print_scopeTree(node,source_root,flag=False):
+    scope_tree = ""
     temp = node
     if flag :
         print("")
@@ -276,6 +277,9 @@ def print_scopeTree(node,source_root,flag=False):
 
         for i in temp.children:
             print_scopeTree(i,source_root, flag=flag)
+
+
+def print_threeAC(source_root,flag=False):
     three_ac = ""
     for func in source_root :
         three_ac +=   "-"*5 +" " + func + " " + "-"*5 + "\n"

@@ -7,14 +7,15 @@ class asm:
 		self.currFunc = ''
 		self.TAC = threeAddressCode
 		self.resetReg()
-		self.stack = {}		# We have to variable name, value, type
+		# self.stack = {}		# We have to variable name, value, type
 		self.new_ST = {}
 		self.unfold_tree(self.ST)
 		self.debug = debug
 
 	def print_new_ST(self):
+		print('\033[92m',"Uniq_id", '\t','offset','\t','Name','\033[0m')
 		for var in self.new_ST :
-				print(var,self.new_ST[var]["offset"],self.new_ST[var]["name"])
+				print(var,'\t',self.new_ST[var]["offset"],'\t',self.new_ST[var]["name"])
 
 	def unfold_tree(self,root):
 		temp = root
@@ -101,9 +102,7 @@ class asm:
 			return "$0"
 		reg = "$s"+str(num)
 		off = self.new_ST[var]["offset"]
-		if (self.new_ST[var]["type"].name=="array"
-		  or self.new_ST[var]["type"].name=="structure"):
-			self.addInstr(["move", reg,"$0",""])
+		if self.new_ST[var]["type"].name in set({"structure","array"}):
 			self.addInstr(["addi",reg,"$fp",str(-off)])
 			return reg
 		elif self.new_ST[var]["type"].name=="string" :
@@ -135,8 +134,8 @@ class asm:
 		return param_reg
 
 
-	def printAssembly(self):
-		file = open("out.s",'w')
+	def printAssembly(self,file_name):
+		file = open(file_name,'w')
 		file.write(".data\n newline : .asciiz \"\\n\" \n.text\n.globl main\nmain:\n")
 		for line in self.assembly_code["main"]:
 			file.write("\t")

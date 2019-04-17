@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 import sys
 import os
@@ -178,15 +178,16 @@ def p_simple_stmt(p):
                 flag = False
                 if "dereference" in expr.extra :
                     flag = expr.extra["dereference"]
-                    expr.value = expr.extra["left_place"]
                 if expr.type.name == valexpr.type.name :
-                    if expr.type.name in set({"int","float","string"}) :
+                    if expr.type.name in set({"int","float","string","pointer"}) :
                         if not flag :
                             p[0].code += expr.code
                             p[0].code.append(ASN(dst=expr.value,arg1=valexpr.value))
                         else :
                             p[0].code += expr.code[:-1]
-                            p[0].code.append(PVA(dst=expr.value,arg1=valexpr.value))
+                            p[0].code.append(PVA(dst=expr.extra["left_place"],arg1=valexpr.value))
+                    else :
+                        raise_general_error("Not Implemented")
                 elif (expr.type.name == "float") and (valexpr.type.name == "int") :
                     if not flag :
                         p[0].code += expr.code
@@ -195,7 +196,7 @@ def p_simple_stmt(p):
                         p[0].code += expr.code[:-1]
                         new_place = curr_scope.new_temp(type=valexpr.type)
                         p[0].code.append(UOP(dst=new_place,op="iTf",arg1=valexpr.value))
-                        p[0].code.append(PVA(dst=expr.value,arg1=new_place))
+                        p[0].code.append(PVA(dst=expr.extra["left_place"],arg1=new_place))
                 else :
                     raise_typerror(p[1].value, "in assignment : operands are different type")
 
@@ -650,7 +651,7 @@ def p_pexpr(p):
                 else:
                     field_offset += field_dict[field_name].size
 
-            new_place = curr_scope.new_temp(type=dType(name="int"))
+            new_place = curr_scope.new_temp(type=p[0].type)
             new_place1 = curr_scope.new_temp(type=dType(name="int"))
             new_place2 = curr_scope.new_temp(type=dType(name="int"))
             p[0].code.append(ASN(dst=new_place2, arg1=str(field_offset),op="int="))
@@ -670,7 +671,8 @@ def p_pexpr(p):
         if p[1].type.name != "array" :
             raise_typerror(p[1].type.name,"type mismatch trying to access array")
         base_size = p[1].type.base.size
-        new_place = curr_scope.new_temp(type=dType(name="int"))
+        p[0].type = p[1].type.base
+        new_place = curr_scope.new_temp(type=p[0].type)
         new_place1 = curr_scope.new_temp(type=dType(name="int"))
         new_place2 = curr_scope.new_temp(type=dType(name="int"))
         base_size_temp = curr_scope.new_temp(type=dType(name="int"))
@@ -679,7 +681,6 @@ def p_pexpr(p):
         access_code.append(BOP(dst=new_place1,arg1=p[1].value,op="int+",arg2=new_place2))
         access_code.append(UOP(dst=new_place,op="*",arg1=new_place1))
         p[0].value = new_place
-        p[0].type = p[1].type.base
         p[0].extra["dereference"] = True
         p[0].extra["left_place"] = new_place1
         # for now
@@ -852,32 +853,37 @@ def p_uexpr(p):
                 else :
                     raise_typerror(p, "in unary expression : " + p[1]
                         + " operator takes int operands only" )
+
             elif p[1] == "-" :
                 if (p[2].type.name == "int") or (p[2].type.name == "float") :
                     new_place = curr_scope.new_temp(type=dType(name=p[2].type.name))
-                    p[0].value = new_place
                     p[0].code.append(UOP(dst=new_place,
                         op=p[1],arg1=p[2].value))
                     p[0].type = dType(name=p[2].type.name)
+                    p[0].value = new_place
                 else :
                     raise_typerror(p, "in unary expression : " + p[1]
-                        + " operator takes int or float operands only" )
+                        + " operator takes int or float operands only")
+
             elif p[1] == "*" :
                 # dereferencing the pointer
                 if p[2].type.name == "pointer" :
-                    new_place = curr_scope.new_temp(type=p[2].type.base)
-                    p[0].value = new_place
+                    p[0].type = p[2].type.base
+                    new_place = curr_scope.new_temp(type=p[0].type)
                     p[0].code.append(UOP(dst=new_place,
                         op=p[1],arg1=p[2].value))
-                    p[0].type = p[2].type.base
                     p[0].extra["dereference"] = True
+                    p[0].extra["left_place"] = p[2].value
+                    p[0].value = new_place
                 else :
                     raise_typerror(p, "in unary expression : " + p[1]
                         + " operator takes pointer type operands only" )
+
             else : # address of -> &
                     new_place = curr_scope.new_temp(type=dType(name="pointer",base=p[2].type))
                     p[0].code.append(UOP(dst=new_place,
                         op=p[1],arg1=p[2].value))
+                    p[0].value = new_place
                     p[0].type = dType(name="pointer",base=p[2].type)
 
 def p_unary_op(p):
@@ -916,19 +922,20 @@ parser = yacc.yacc()
 
 if __name__ == "__main__" :
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("--input", help="Input go file in format [file.go]")
-    argparser.add_argument("--debug", help="debug=True prints the symbol table n all")
+    argparser.add_argument("-i","--input", help="Input go file like file.go")
+    argparser.add_argument("-d","--debug",help="Prints debug info like symbol table",
+        action="store_true")
     args = argparser.parse_args()
     # print(args)
     input_file = args.input if args.input is not None else "test.go"
 
     debug = False
-    if args.debug == "true":
+    if args.debug :
         debug = True
     with open(input_file, "r") as f:
         data = f.read()
     symbol_table,func_tac = parser.parse(data)
-    three_ac = print_scopeTree(symbol_table,func_tac,flag=debug)
+    print_scopeTree(symbol_table,func_tac,flag=debug)
     print("-"*15 + "START 3AC" + "-"*15)
-    print(three_ac)
+    print(print_threeAC(func_tac))
     print("-"*16 + "END 3AC" + "-"*16)
