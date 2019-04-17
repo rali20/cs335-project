@@ -13,7 +13,7 @@
 
 // var e,f float = 6,5;
 
-// func print_int(n int);
+func print_int(n int);
 // func print_str(s string);
 // func read_int() int;
 
@@ -28,8 +28,8 @@ type bigNode struct {
 
 func main(){
   var bNode bigNode;
-  bNode.arr[5] = 113;
-  // print_int(bNode.arr[6]);
+  bNode.S.q = 113;
+  print_int(bNode.S.q);
   // bNode.a = 1;
   // bNode.b = 3;
   // bNode.c = 5;
