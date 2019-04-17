@@ -1,7 +1,7 @@
 import pprint
 tempReg = ['$s0','$s1','$s2']
 class asm:
-	def __init__(self, symbolTable, threeAddressCode):
+	def __init__(self, symbolTable, threeAddressCode,debug=False):
 		self.assembly_code = {}
 		self.ST = symbolTable
 		self.currFunc = ''
@@ -10,7 +10,11 @@ class asm:
 		self.stack = {}		# We have to variable name, value, type
 		self.new_ST = {}
 		self.unfold_tree(self.ST)
-		# pprint.pprint(self.new_ST)
+		self.debug = debug
+
+	def print_new_ST(self):
+		for var in self.new_ST :
+				print(var,self.new_ST[var]["offset"],self.new_ST[var]["name"])
 
 	def unfold_tree(self,root):
 		temp = root
@@ -67,14 +71,14 @@ class asm:
 		self.tempoffset = 0
 
 	def function_call(self,function):
-		# print("===========", function)
+		# print("+"*5, function)
 		self.currFunc = function
 		self.assembly_code[function] = []
 
 	def addInstr(self,instr):
 		if(len(instr)!=4):
-			print("========Size should be 4: ", instr)
-		# print(self.currFunc,instr)
+			print("+"*5,"Size should be 4: ", instr)
+		if self.debug : print(instr)
 		self.assembly_code[self.currFunc].append(instr)
 
 	def flushReg(self,reg):
@@ -90,28 +94,29 @@ class asm:
 
 	def getReg(self,var,num):
 		# print("getReg for ",var)
+		if str(var) == "0" :
+			return "$0"
 		reg = "$s"+str(num)
 		off = self.new_ST[var]["offset"]
-		if self.new_ST[var]["type"].name=="array" or self.new_ST[var]["type"].name=="structure":
-			self.addInstr(["xor", reg,reg,""])
+		if (self.new_ST[var]["type"].name=="array"
+		  or self.new_ST[var]["type"].name=="structure"):
+			self.addInstr(["move", reg,"$0",""])
 			self.addInstr(["addi",reg,"$fp",str(-off)])
+			return reg
+		elif self.new_ST[var]["type"].name=="string" :
+			if var[0:2] == "_T":
+				self.addInstr(["la",reg,var,""])
 			return reg
 		self.addInstr(['lw',reg,'-'+str(off)+'($fp)',''])
 		return reg
 
-
-	def getReg1(self,var):
-		pass
-
-
 	def storeReg(self,var,num):
-		if self.new_ST[var]["type"].name=="array" or self.new_ST[var]["type"].name=="structure":
+		if ( self.new_ST[var]["type"].name in set({"structure","array"})
+			 or str(var) == "0" ):
 			return
 		reg = "$s"+str(num)
 		off = self.new_ST[var]["offset"]
 		self.addInstr(['sw',reg,'-'+str(off)+'($fp)',''])
-
-
 
 
 	def getParamReg(self,var):
@@ -126,27 +131,10 @@ class asm:
 			print("No more free param regs")
 		return param_reg
 
-	def storeParam(self,func_name):
-		off = 4
-		for idx in range(len(self.ST.mainsymbtbl[func_name]['Parameters']) - 1) :
-			self.addInstr(['lw','$s7',str(-(4+off))+'($sp)',''])
-			self.addInstr(['sw','$s7',str(-(off ))+'($fp)',''])
-			off += 4
-		self.addInstr(['lw','$s7',str(-4)+'($sp)',''])
-		self.addInstr(['sw','$s7',str(0)+'($fp)',''])
-
-	def savePrevValues(self,z,paramcount):
-		counter = paramcount + 4
-		for prev in tempReg:
-			self.addInstr(['sw',prev,'-'+str(counter)+"($sp)",''])
-			counter +=4
-		self.addInstr(['sw','$ra','-'+str(counter)+'($sp)',''])
-		self.addInstr(['sw','$fp','-'+str(counter+4)+'($sp)',''])
-		self.addInstr(['sw','$sp','-'+str(counter+8)+'($sp)',''])
 
 	def printAssembly(self):
 		file = open("out.s",'w')
-		file.write(".data\n newline : .asciiz \"\\n\" \n.text\nmain:\n")
+		file.write(".data\n newline : .asciiz \"\\n\" \n.text\n.globl main\nmain:\n")
 		for line in self.assembly_code["main"]:
 			file.write("\t")
 			if line[1] == '':

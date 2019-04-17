@@ -228,7 +228,7 @@ def p_for_body(p):
     p[0].code += initial.code
     p[0].code.append(LBL(arg1=labelBegin))
     p[0].code += expr.code
-    p[0].code.append(CBR(arg1=expr.value,op="==",arg2=0,dst=labelAfter))
+    p[0].code.append(CBR(arg1=expr.value,op=expr.type.name+"==",arg2=0,dst=labelAfter))
     p[0].code += block.code
     p[0].code.append(LBL(arg1=labelUpdate))
     p[0].code += update.code
@@ -265,14 +265,14 @@ def p_if_stmt(p):
     if len(p)==4 :
         labelAfter = curr_scope.new_label()
         p[0] = p[2]
-        p[0].code.append(CBR(arg1=p[2].value,op="==",arg2=0,dst=labelAfter))
+        p[0].code.append(CBR(arg1=p[2].value,op=p[2].type.name+"==",arg2=0,dst=labelAfter))
         p[0].code += p[3].code
         p[0].code.append(LBL(arg1=labelAfter))
     elif len(p)==5 :
         labelElse = curr_scope.new_label()
         labelAfter = curr_scope.new_label()
         p[0] = p[2]
-        p[0].code.append(CBR(arg1=p[2].value,op="==",arg2=0,dst=labelElse))
+        p[0].code.append(CBR(arg1=p[2].value,op=p[2].type.name+"==",arg2=0,dst=labelElse))
         p[0].code += p[3].code
         p[0].code.append(CMD(op="goto",arg1=labelAfter))
         p[0].code.append(LBL(arg1=labelElse))
@@ -283,7 +283,7 @@ def p_if_stmt(p):
         # If
         labelFalse = curr_scope.new_label()
         p[0] = p[2]
-        p[0].code.append(CBR(arg1=p[2].value,op="==",arg2=0,dst=labelFalse))
+        p[0].code.append(CBR(arg1=p[2].value,op=p[2].type.name+"==",arg2=0,dst=labelFalse))
         p[0].code += p[3].code
         p[0].code.append(CMD(op="goto",arg1=labelAfter))
         p[0].code.append(LBL(arg1=labelFalse))
@@ -291,7 +291,7 @@ def p_if_stmt(p):
         for expr,block in p[4].value :
             labelFalse = curr_scope.new_label()
             p[0].code += expr.code
-            p[0].code.append(CBR(arg1=expr.value,op="==",arg2=0,dst=labelFalse))
+            p[0].code.append(CBR(arg1=expr.value,op=expr.type.name+"==",arg2=0,dst=labelFalse))
             p[0].code += block.code
             p[0].code.append(CMD(op="goto",arg1=labelAfter))
             p[0].code.append(LBL(arg1=labelFalse))
@@ -532,15 +532,15 @@ def p_basic_lit(p):
         new_place = curr_scope.new_temp(type=dType(name="int"))
         p[0] = container(type=dType(name="int"), value=new_place)
         p[0].extra["array_length"] = p[1]
-        p[0].code.append(ASN(dst=new_place, arg1=p[1],op="i="))
+        p[0].code.append(ASN(dst=new_place, arg1=p[1],op="int="))
     elif type(p[1]) == float:
         new_place = curr_scope.new_temp(type=dType(name="float"))
         p[0] = container(type=dType(name="float"), value=new_place)
-        p[0].code.append(ASN(dst=new_place, arg1=p[1],op="f="))
+        p[0].code.append(ASN(dst=new_place, arg1=p[1],op="float="))
     else :
         new_place = curr_scope.new_temp(type=dType(name="string"))
         p[0] = container(type=dType(name="string"), value=new_place)
-        p[0].code.append(ASN(dst=new_place, arg1=p[1],op="s="))
+        p[0].code.append(ASN(dst=new_place, arg1=p[1],op="str="))
 
 
 def p_stmt_list(p):
@@ -637,21 +637,29 @@ def p_pexpr(p):
         else : # structure access
             p[0].code += p[1].code
             if p[1].type.name != "structure":
-                raise_general_error("DOT can be used only with structures")
+                raise_typerror(p[1].type.name,"DOT can be used only with structures")
             field_dict = p[1].type.field_dict
             if p[3] not in field_dict:
-                raise_general_error(p[3]+" is not a field in structure " + field_dict)
+                raise_typerror(p[3]," is not a field in structure " + field_dict)
             p[0].type = field_dict[p[3]]
             # find the address/offset first
-            new_place = curr_scope.new_temp(type=dType(name="int"))
-            p[0].value = new_place
             field_offset=0
             for field_name in field_dict:
                 if field_name == p[3]:
                     break
                 else:
                     field_offset += field_dict[field_name].size
-            p[0].code.append(BOP(dst=new_place,op="int+",arg1=p[1].value,arg2=str(field_offset)))
+
+            new_place = curr_scope.new_temp(type=dType(name="int"))
+            new_place1 = curr_scope.new_temp(type=dType(name="int"))
+            new_place2 = curr_scope.new_temp(type=dType(name="int"))
+            p[0].code.append(ASN(dst=new_place2, arg1=str(field_offset),op="int="))
+            p[0].code.append(BOP(dst=new_place1,op="int+",arg1=p[1].value,arg2=new_place2))
+            p[0].code.append(UOP(dst=new_place,op="*",arg1=new_place1))
+            p[0].value = new_place
+            p[0].extra["dereference"] = True
+            p[0].extra["left_place"] = new_place1
+
     else : # array access
         p[0].code += p[1].code
         if p[3].type.name != "int" :
@@ -659,22 +667,21 @@ def p_pexpr(p):
         p[0].code += p[1].code
         p[0].code += p[3].code
         access_code = list()
-        if p[1].type.name == "array" :
-            base_size = p[1].type.base.size
-            new_place = curr_scope.new_temp(type=dType(name="int"))
-            new_place1 = curr_scope.new_temp(type=dType(name="int"))
-            new_place2 = curr_scope.new_temp(type=dType(name="int"))
-            base_size_temp = curr_scope.new_temp(type=dType(name="int"))
-            access_code.append(ASN(dst=base_size_temp,arg1=base_size,op="i="))
-            access_code.append(BOP(dst=new_place,arg1=p[3].value,op="int*",arg2=base_size_temp))
-            access_code.append(BOP(dst=new_place1,arg1=p[1].value,op="int+",arg2=new_place))
-            access_code.append(UOP(dst=new_place2,op="*",arg1=new_place1))
-            p[0].value = new_place2
-            p[0].type = p[1].type.base
-            p[0].extra["dereference"] = True
-            p[0].extra["left_place"] = new_place1
-        else :
+        if p[1].type.name != "array" :
             raise_typerror(p[1].type.name,"type mismatch trying to access array")
+        base_size = p[1].type.base.size
+        new_place = curr_scope.new_temp(type=dType(name="int"))
+        new_place1 = curr_scope.new_temp(type=dType(name="int"))
+        new_place2 = curr_scope.new_temp(type=dType(name="int"))
+        base_size_temp = curr_scope.new_temp(type=dType(name="int"))
+        access_code.append(ASN(dst=base_size_temp,arg1=base_size,op="int="))
+        access_code.append(BOP(dst=new_place2,arg1=p[3].value,op="int*",arg2=base_size_temp))
+        access_code.append(BOP(dst=new_place1,arg1=p[1].value,op="int+",arg2=new_place2))
+        access_code.append(UOP(dst=new_place,op="*",arg1=new_place1))
+        p[0].value = new_place
+        p[0].type = p[1].type.base
+        p[0].extra["dereference"] = True
+        p[0].extra["left_place"] = new_place1
         # for now
         p[0].code += access_code
 
@@ -747,13 +754,9 @@ def p_expr(p):
     else:
         p[0] = container()
         p[0].code = p[1].code + p[3].code
-        if p[1].type.name=="float" or p[3].type.name=="float":
-            new_place = curr_scope.new_temp(type=dType(name="float"))
-        else:
-            new_place = curr_scope.new_temp(type=dType(name="int"))
-        p[0].value = new_place
         # int only operators
         if p[2] in set({"||","&&","&","|","<<",">>","%"}):
+            new_place = curr_scope.new_temp(type=dType(name="int"))
             if p[1].type.name == "int" and p[3].type.name == "int":
                  p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op=p[2],arg2=p[3].value))
                  p[0].type = p[1].type
@@ -761,19 +764,22 @@ def p_expr(p):
                 raise_typerror(p, "in expression : "
                     + p[2] + " operator takes int operands only" )
         # int or float
-        else : #p[2] in set({"+","-","*","/","<",">",">=","<=","!=","=="}):
+        elif (p[2] in set({"+","-","*","/"})):
             if ((p[1].type.name == "int" and p[3].type.name == "int")
                     or (p[1].type.name == "float" and p[3].type.name == "float")) :
+                new_place = curr_scope.new_temp(type=dType(name=p[1].type.name))
                 p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op=p[1].type.name+str(p[2]),arg2=p[3].value))
                 p[0].type = p[1].type
                 # print("BOP:int only",p[0].code[0])
             elif p[1].type.name == "int" and p[3].type.name == "float" :
-                new_place1 = curr_scope.new_temp(type=p[3].type)
+                new_place = curr_scope.new_temp(type=dType(name="float"))
+                new_place1 = curr_scope.new_temp(type=dType(name="float"))
                 p[0].code.append(UOP(dst=new_place1,op="iTf",arg1=p[1].value))
                 p[0].code.append(BOP(dst=new_place,arg1=new_place1,op="float"+str(p[2]),arg2=p[3].value))
                 p[0].type = p[3].type
             elif p[1].type.name == "float" and p[3].type.name == "int" :
-                new_place1 = curr_scope.new_temp(type=p[1].type)
+                new_place = curr_scope.new_temp(type=dType(name="float"))
+                new_place1 = curr_scope.new_temp(type=dType(name="float"))
                 p[0].code.append(UOP(dst=new_place1,op="iTf",arg1=p[3].value))
                 p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op="float"+str(p[2]),arg2=new_place1))
                 p[0].type = p[1].type
@@ -781,6 +787,51 @@ def p_expr(p):
                 print(p[1].type,p[3].type)
                 raise_typerror(p, "in expression : "
                     + p[2] + " operator takes int or float operands only" )
+        elif p[2] in set({"<",">",">=","<=","!=","=="}):
+            new_label = curr_scope.new_label()
+            new_label1 = curr_scope.new_label()
+            if ((p[1].type.name == "int" and p[3].type.name == "int")
+                    or (p[1].type.name == "float" and p[3].type.name == "float")) :
+                new_place = curr_scope.new_temp(type=dType(name=p[1].type.name))
+                p[0].code.append(CBR(arg1=p[1].value,op=p[1].type.name+str(p[2]),arg2=p[3].value,dst=new_label))
+                p[0].code.append(ASN(dst=new_place,op=p[1].type.name+"=",arg1=0))
+                p[0].code.append(CMD(op="goto",arg1=new_label1))
+                p[0].code.append(LBL(arg1=new_label))
+                p[0].code.append(ASN(dst=new_place,op=p[1].type.name+"=",arg1=1))
+                p[0].code.append(LBL(arg1=new_label1))
+                p[0].type = p[1].type
+                # print("BOP:int only",p[0].code[0])
+            elif p[1].type.name == "int" and p[3].type.name == "float" :
+                new_place = curr_scope.new_temp(type=dType(name="float"))
+                new_place1 = curr_scope.new_temp(type=dType(name="float"))
+                p[0].code.append(UOP(dst=new_place1,op="iTf",arg1=p[1].value))
+                p[0].code.append(CBR(arg1=p[1].value,op=p[3].type.name+str(p[2]),arg2=p[3].value,dst=new_label))
+                p[0].code.append(ASN(dst=new_place,op=p[3].type.name+"=",arg1=0))
+                p[0].code.append(CMD(op="goto",arg1=new_label1))
+                p[0].code.append(LBL(arg1=new_label))
+                p[0].code.append(ASN(dst=new_place,op=p[3].type.name+"=",arg1=1))
+                p[0].code.append(LBL(arg1=new_label1))
+                p[0].type = p[3].type
+            elif p[1].type.name == "float" and p[3].type.name == "int" :
+                new_place = curr_scope.new_temp(type=dType(name="float"))
+                new_place1 = curr_scope.new_temp(type=dType(name="float"))
+                p[0].code.append(UOP(dst=new_place1,op="iTf",arg1=p[3].value))
+                p[0].code.append(CBR(arg1=p[1].value,op=p[1].type.name+str(p[2]),arg2=p[3].value,dst=new_label))
+                p[0].code.append(ASN(dst=new_place,op=p[1].type.name+"=",arg1=0))
+                p[0].code.append(CMD(op="goto",arg1=new_label1))
+                p[0].code.append(LBL(arg1=new_label))
+                p[0].code.append(ASN(dst=new_place,op=p[1].type.name+"=",arg1=1))
+                p[0].code.append(LBL(arg1=new_label1))
+                p[0].type = p[1].type
+            else :
+                print(p[1].type,p[3].type)
+                raise_typerror(p, "in expression : "
+                    + p[2] + " operator takes int or float operands only" )
+        else :
+            raise_general_error(p[2]+": operator not supported")
+        p[0].value = new_place
+
+
 
 def p_uexpr(p):
     '''UExpr : PExpr
