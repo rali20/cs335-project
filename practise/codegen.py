@@ -5,7 +5,7 @@ import new_parser
 import pprint,sys
 
 debug = False
-input_file = "test.go"
+input_file = "tests/airthmatics.go"
 with open(input_file,"r") as f:
     data = f.read()
 symbol_table,three_ac = new_parser.parser.parse(data)
@@ -17,7 +17,8 @@ asm.print_new_ST()
 
 def print_unimp(s):
     print(s,": ***Unimplimented***")
-
+    exit()
+print("\n===========3AC==========\n")
 for func in three_ac :
     asm.function_call(func)
     for codeline in three_ac[func] :
@@ -59,6 +60,11 @@ for func in three_ac :
                 elif arg1=="print_str" :
                     asm.addInstr(["li", "$v0","4", ""])
                     asm.addInstr(["syscall","","",""])
+                elif arg1=="print_float":
+                    # asm.addInstr(["mov.s","$fp12","$a0",""])
+                    # asm.addInstr(["li","$v0","2",""])
+                    # asm.addInstr(["syscall","","",""])
+                    print_unimp("print_float ")
                 else :
                     asm.addInstr(["jal",arg1,"",""])
             elif op=="push_param":
@@ -181,9 +187,9 @@ for func in three_ac :
         else :
             print_unimp(codeline)
 
-        print(" ")
+        # print(" ")
 
 asm.assembly_code["main"].append(["li","$v0","10",""])
 asm.assembly_code["main"].append(["syscall","","",""])
-print("\n\n")
+# print("\n\n")
 asm.printAssembly();
