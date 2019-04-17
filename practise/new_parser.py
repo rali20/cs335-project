@@ -640,7 +640,7 @@ def p_pexpr(p):
                 raise_typerror(p[1].type.name,"DOT can be used only with structures")
             field_dict = p[1].type.field_dict
             if p[3] not in field_dict:
-                raise_typerror(p[3]," is not a field in structure " + field_dict)
+                raise_typerror(p[3]," is not a field in structure " + str(field_dict))
             p[0].type = field_dict[p[3]]
             # find the address/offset first
             field_offset=0

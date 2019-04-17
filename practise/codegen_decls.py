@@ -91,6 +91,9 @@ class asm:
 		self.addInstr(['.data','','',''])
 		self.addInstr([var+':','.asciiz',stringToStore,''])
 		self.addInstr(['.text','','',''])
+		off = self.new_ST[var]["offset"]
+		self.addInstr(["la","$t0",var,""])
+		self.addInstr(["sw","$t0",str(-off)+'($fp)',''])
 
 	def getReg(self,var,num):
 		# print("getReg for ",var)
