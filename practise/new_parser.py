@@ -542,9 +542,11 @@ def p_basic_lit(p):
 def p_stmt_list(p):
     '''StmtList : empty
                 | StmtList Stmt'''
+    p[0] = container()
     if len(p) == 2:
         p[0] = container()
     else :
+        print(p[2])
         p[0] = p[1]
         p[0].code += p[2].code
 
@@ -577,10 +579,18 @@ def p_non_decl_stmt(p):
                    | RETURN OExpr SEMCLN
                    | LabelName COLON Stmt'''
     global curr_scope
+    p[0] = container()
     if len(p) == 2:
         p[0] = p[1]
     elif len(p) == 3 :
-        p[0] = p[1]
+        if p[1] == "break" :
+            brk_lbl = curr_scope.find_label("#forAfter")
+            p[0].code.append(CMD(op="goto",arg1=brk_lbl))
+        elif p[1] == "continue" :
+            cont_lbl = curr_scope.find_label("#forUpdate")
+            p[0].code.append(CMD(op="goto",arg1=cont_lbl))
+        else :
+            p[0] = p[1]
     else :
         p[0] = container()
         if str(p.slice[1]) == "LabelName" :
@@ -588,12 +598,6 @@ def p_non_decl_stmt(p):
             p[0].code += p[3].code
         elif p[1] == "goto" :
             p[0].code.append(CMD(op="goto",arg1=p[2]))
-        elif p[1] == "break" :
-            brk_lbl = curr_scope.find_label("#forAfter")
-            p[0].code.append(CMD(op="goto",arg1=brk_lbl))
-        elif p[1] == "continue" :
-            cont_lbl = curr_scope.find_label("#forUpdate")
-            p[0].code.append(CMD(op="goto",arg1=cont_lbl))
         else : # return
             p[0] = container()
             ret_type = curr_scope.typeTable["#return"]
