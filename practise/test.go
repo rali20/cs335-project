@@ -1,19 +1,19 @@
-// func print_int(n int);
-// func print_str(s string);
-// func read_int() int;
+func print_int(n int);
+func print_str(s string);
+func read_int() int;
+
+
 
 func main(){
-
-	var arr [40] int;
-  // var p *[40]int;
-  arr[1] = 3;
-  // print_str("arr[1] before : ");
-  // print_int(arr[1]);
-  // print_str("\n");
-  // p = &arr;
-  // (*p)[1] = 5;
-  // print_str("arr[1] after : ");
-  // print_int(arr[1]);
-  // print_str("\n");
-
+  var x int;
+  var p1 *int;
+  var p2 **int;
+  // var p3 ***int;
+  x = 2;
+  p1 = &x;
+  p2 = &p1;
+  *(*p2) = 98;
+  print_int(x);
+  // print_int(7);
+  // print_int(x);
 }

@@ -7,8 +7,4 @@ func main(){
   arr[2] = read_int();
   print_int(arr[2]);
 
-  var s [10]string;
-  s[4] = "\nHello World\n";
-  print_str(s[4]);
-
 }
