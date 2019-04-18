@@ -546,7 +546,6 @@ def p_stmt_list(p):
     if len(p) == 2:
         p[0] = container()
     else :
-        print(p[2])
         p[0] = p[1]
         p[0].code += p[2].code
 

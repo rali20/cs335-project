@@ -1,3 +1,3 @@
 #!/bin/bash
-./codegen.py -i $1 -d
+./codegen.py -i $1 
 spim -f out.s

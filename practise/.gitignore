@@ -1,5 +1,7 @@
 *.tac
 *.s
 *.c
-*.txt
 *.out
+to_submit/
+asm_decls.py
+asm_gen.py
