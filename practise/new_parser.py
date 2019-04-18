@@ -638,11 +638,10 @@ def p_pexpr(p):
         else : # structure access
             if p[1].type.name != "structure":
                 raise_typerror(p[1].type.name,"DOT can be used only with structures")
-            p[0].code += p[1].code
+
             field_dict = p[1].type.field_dict
             if p[3] not in field_dict:
                 raise_typerror(p[3]," is not a field in structure " + str(field_dict))
-            p[0].type = field_dict[p[3]]
             # find the address/offset first
             field_offset=0
             for field_name in field_dict:
@@ -650,17 +649,29 @@ def p_pexpr(p):
                     break
                 else:
                     field_offset += field_dict[field_name].size
+            flag = False
+            if "dereference" in p[1].extra :
+                flag = p[1].extra["dereference"]
 
-            new_place = curr_scope.new_temp(type=p[0].type)
+            new_place = curr_scope.new_temp(type=field_dict[p[3]])
             new_place1 = curr_scope.new_temp(type=dType(name="int"))
             new_place2 = curr_scope.new_temp(type=dType(name="int"))
-            p[0].code.append(ASN(dst=new_place2, arg1=str(field_offset),op="int="))
-            p[0].code.append(BOP(dst=new_place1,op="int+",arg1=p[1].value,arg2=new_place2))
-            p[0].code.append(UOP(dst=new_place,op="*",arg1=new_place1))
+
+            if not flag :
+                p[0].code += p[1].code
+                p[0].code.append(ASN(dst=new_place2, arg1=str(field_offset),op="int="))
+                p[0].code.append(BOP(dst=new_place1,op="int+",arg1=p[1].value,arg2=new_place2))
+                p[0].code.append(UOP(dst=new_place,op="*",arg1=new_place1))
+            else :
+                p[0].code += p[1].code[:-1]
+                p[0].code.append(ASN(dst=new_place2, arg1=str(field_offset),op="int="))
+                p[0].code.append(BOP(dst=new_place1,op="int+",arg1=p[1].extra["left_place"],arg2=new_place2))
+                p[0].code.append(UOP(dst=new_place,op="*",arg1=new_place1))
+
             p[0].value = new_place
+            p[0].type = field_dict[p[3]]
             p[0].extra["dereference"] = True
             p[0].extra["left_place"] = new_place1
-
     else : # array access
         if p[3].type.name != "int" :
             raise_typerror(p[3],"index has to be int")
@@ -674,8 +685,7 @@ def p_pexpr(p):
             flag = p[1].extra["dereference"]
 
         base_size = p[1].type.base.size
-        p[0].type = p[1].type.base
-        new_place = curr_scope.new_temp(type=p[0].type)
+        new_place = curr_scope.new_temp(type=p[1].type.base)
         new_place1 = curr_scope.new_temp(type=dType(name="int"))
         new_place2 = curr_scope.new_temp(type=dType(name="int"))
         base_size_temp = curr_scope.new_temp(type=dType(name="int"))
@@ -696,6 +706,7 @@ def p_pexpr(p):
             access_code.append(UOP(dst=new_place,op="*",arg1=new_place1))
 
         p[0].value = new_place
+        p[0].type = p[1].type.base
         p[0].extra["dereference"] = True
         p[0].extra["left_place"] = new_place1
         # for now
@@ -800,7 +811,7 @@ def p_expr(p):
                 p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op="float"+str(p[2]),arg2=new_place1))
                 p[0].type = p[1].type
             else :
-                print(p[1].type,p[3].type)
+                print(p[1].type.name,p[3].type.name)
                 raise_typerror(p, "in expression : "
                     + p[2] + " operator takes int or float operands only" )
         elif p[2] in set({"<",">",">=","<=","!=","=="}):
@@ -853,54 +864,68 @@ def p_uexpr(p):
     '''UExpr : PExpr
              | UnaryOp UExpr'''
     global curr_scope
+    p[0] = container()
     if len(p)==2:
         p[0] = p[1]
     else:
-        p[0] = p[2]
-        if p[1] != "+" :
-            if (p[1] == "!") :
-                if p[2].type.name == "int" :
-                    new_place = curr_scope.new_temp(type=dType(name="int"))
-                    p[0].code.append(UOP(dst=new_place,
-                        op=p[1],arg1=p[2].value))
-                    p[0].type = dType(name="int")
-                    p[0].value = new_place
-                else :
-                    raise_typerror(p, "in unary expression : " + p[1]
-                        + " operator takes int operands only" )
+        if p[1] == "+" :
+            p[0] = p[2]
+        elif p[1] == "!" :
+            p[0] = p[2]
+            if p[2].type.name == "int" :
+                new_place = curr_scope.new_temp(type=dType(name="int"))
+                p[0].code.append(UOP(dst=new_place,
+                    op=p[1],arg1=p[2].value))
+                p[0].type = dType(name="int")
+                p[0].value = new_place
+            else :
+                raise_typerror(p, "in unary expression : " + p[1]
+                    + " operator takes int operands only" )
+        elif p[1] == "-" :
+            p[0] = p[2]
+            if (p[2].type.name == "int") or (p[2].type.name == "float") :
+                new_place = curr_scope.new_temp(type=dType(name=p[2].type.name))
+                p[0].code.append(UOP(dst=new_place,
+                    op=p[1],arg1=p[2].value))
+                p[0].type = dType(name=p[2].type.name)
+                p[0].value = new_place
+            else :
+                raise_typerror(p, "in unary expression : " + p[1]
+                    + " operator takes int or float operands only")
+        elif p[1] == "*" :
+            # dereferencing the pointer
+            if p[2].type.name != "pointer" :
+                raise_typerror(p, "in unary expression : " + p[1]
+                    + " operator takes pointer type operands only" )
 
-            elif p[1] == "-" :
-                if (p[2].type.name == "int") or (p[2].type.name == "float") :
-                    new_place = curr_scope.new_temp(type=dType(name=p[2].type.name))
-                    p[0].code.append(UOP(dst=new_place,
-                        op=p[1],arg1=p[2].value))
-                    p[0].type = dType(name=p[2].type.name)
-                    p[0].value = new_place
-                else :
-                    raise_typerror(p, "in unary expression : " + p[1]
-                        + " operator takes int or float operands only")
+            # flag = False
+            # if "dereference" in p[2].extra :
+            #     flag = p[2].extra["dereference"]
 
-            elif p[1] == "*" :
-                # dereferencing the pointer
-                if p[2].type.name == "pointer" :
-                    new_place = curr_scope.new_temp(type=p[2].type.base)
-                    p[0].code.append(UOP(dst=new_place,
-                        op=p[1],arg1=p[2].value))
-                    p[0].type = p[2].type.base
-                    p[0].extra["dereference"] = True
-                    p[0].extra["left_place"] = p[2].value
-                    p[0].value = new_place
-                    # print("*"*5,str(p[0].code[-1]))
-                else :
-                    raise_typerror(p, "in unary expression : " + p[1]
-                        + " operator takes pointer type operands only" )
+            new_place = curr_scope.new_temp(type=p[2].type.base)
+            p[0].code += p[2].code
+            p[0].code.append(UOP(dst=new_place,op=p[1],arg1=p[2].value))
+            p[0].extra["left_place"] = p[2].value
 
-            else : # address of -> &
-                    new_place = curr_scope.new_temp(type=dType(name="pointer",base=p[2].type))
-                    p[0].code.append(UOP(dst=new_place,
-                        op=p[1],arg1=p[2].value))
-                    p[0].value = new_place
-                    p[0].type = dType(name="pointer",base=p[2].type)
+            # if not flag :
+            #     p[0].code += p[2].code
+            #     p[0].code.append(UOP(dst=new_place,op=p[1],arg1=p[2].value))
+            #     p[0].extra["left_place"] = p[2].value
+            # else :
+            #     p[0].code += p[2].code[:-1]
+            #     p[0].code.append(UOP(dst=new_place,op=p[1],arg1=p[2].extra["left_place"]))
+            #     p[0].extra["left_place"] = p[2].extra["left_place"]
+
+            p[0].type = p[2].type.base
+            p[0].extra["dereference"] = True
+            p[0].value = new_place
+        else : # address of -> &
+            p[0] = p[2]
+            new_place = curr_scope.new_temp(type=dType(name="pointer",base=p[2].type))
+            p[0].code.append(UOP(dst=new_place,
+                op=p[1],arg1=p[2].value))
+            p[0].value = new_place
+            p[0].type = dType(name="pointer",base=p[2].type)
 
 def p_unary_op(p):
     '''UnaryOp : ADD
