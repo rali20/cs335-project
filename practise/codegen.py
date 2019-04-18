@@ -166,6 +166,7 @@ for func in three_ac :
                     r1=asm.getReg(arg1,0)
                     asm.addInstr(['sub',dr,'$0',dr]);
                 elif op=="*":
+                    r1=asm.getReg(arg1,0)
                     asm.addInstr(['lw',dr,'0('+r1+')',''])
                 else :
                     print_unimp(op)
