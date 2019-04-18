@@ -55,17 +55,18 @@ func mergesort(numbers *[40]int , n int) {
 }
 
 func main() {
+	print_str("\033[91m \n\nRUNNING MERGESORT.GO \033[0m");
 	var n int = 10;
-	var numbers [40] int;
+	var numbers [100] int;
   var i int;
-	print_str("Mergesort Check : integers only\n");
-	print_str("Enter no of elements (max 40) : ");
+	print_str("\033[91m \nMergesort Check : integers only\n \033[0m");
+	print_str("\033[91m \nEnter no of elements :  \033[0m");
 	n = read_int();
-	print_str("Enter numbers below\n");
+	print_str("\033[91m \nEnter numbers below:\n \033[0m");
 	for i =0; i<n; i=i+1 {
 		numbers[i] = read_int();
 	}
-	print_str("Before sorting : ");
+	print_str("\033[91m \nBefore sorting :  \033[0m");
 	for i =0; i<n; i=i+1 {
 		 print_int(numbers[i]);
 		 print_str(" ");
@@ -74,7 +75,7 @@ func main() {
 
 	mergesort(&numbers, n);
 
-	print_str("After sorting : ");
+	print_str("\033[91m \nAfter sorting :  \033[0m");
 	for i =0; i<n; i=i+1 {
 		 print_int(numbers[i]);
 		 print_str(" ");
