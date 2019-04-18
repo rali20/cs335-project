@@ -242,19 +242,19 @@ class MISC(Tac):
         return " ".join([self.op,str(self.arg1),str(self.arg2)])
 
 
-def raise_typerror(p, s=""):
-    print("Type error: ", p)
+def raise_typerror(p="",s="",line=0):
+    print("\033[95m Type Error \033[0m at line",line,":",p)
     print(s)
     exit(-1)
 
-def raise_out_of_bounds_error(p, s="" ):
-    print("out of bounds error")
+def raise_out_of_bounds_error(p="",s="",line=0):
+    print("\033[95m Out of Bounds Error \033[0m at line "+str(line))
     print(p)
     print(s)
     exit(-1)
 
-def raise_general_error(s):
-    print(s)
+def raise_general_error(s="",line=0):
+    print("\033[95m General Error \033[0m at line",line,s)
     exit(-1)
 
 

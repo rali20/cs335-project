@@ -103,7 +103,7 @@ def t_IDENT(t):
 
 @lex.TOKEN(string_lit)
 def t_STRING_LIT(t):
-    t.value = t.value#[1:-1]
+    t.value = t.value
     return t
 
 @lex.TOKEN(float_lit)
@@ -121,7 +121,9 @@ def t_newline(t):
     t.lexer.lineno += len(t.value)
 
 def t_error(t):
-    print("Illegal Character")
-    t.lexer.skip(1)
+    print("\033[91m Illegal Character \033[0m:","\'"+t.value[0]+"\'",
+        "at line",t.lexer.lineno,"position",t.lexer.lexpos)
+    exit(-1)
+    # t.lexer.skip(1)
 
 lexer = lex.lex()

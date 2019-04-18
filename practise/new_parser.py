@@ -84,7 +84,7 @@ def p_var_decl(p):
         # check length of decllist and ExprList
         if len(p[1].value) != len(p[4].value):
             raise_out_of_bounds_error(p[1].value,
-                "different number of variables and expressions")
+                "different number of variables and expressions",line=p.slice[3].lineno)
         p[0].code = p[4].code
         # all types on right must be same as Type
         for i in range(len(p[4].value)):
@@ -95,15 +95,12 @@ def p_var_decl(p):
                 if  p[2].type.name=="float" and exp.type.name=="int":
                     p[0].code.append(UOP(dst=p[1].value[i], op="iTf", arg1=exp.value))
                 else:
-                    # print(p[2].type.name, exp.type.name)
-                    raise_typerror(p[1].value,  "type mis-match in var declaration")
+                    raise_typerror(p[2].type.name+' != '+exp.type.name,  "type mis-match in var declaration",line=p.slice[3].lineno)
             else:
                 p[0].code.append(ASN(dst=p[1].value[i], arg1=exp.value))
     else:
         for i in range(len(p[1].value)):
             p[1].value[i] = curr_scope.insert(p[1].value[i],type=p[2].type,is_var=1)
-            # if p[2].type.name=="array":
-            #     p[0].code.append(CMD(op="assign_addr", arg1=p[1].value[i]))
 
 def p_decl_name_list(p):
     '''DeclNameList : Name
@@ -133,7 +130,7 @@ def p_const_decl(p):
                 exp.type = "float"
                 p[0].code.append(UOP(dst=p[1].value[i], op="iTf", arg1=exp.value))
             else:
-                raise_typerror(p[1].value,  "type mis-match in var declaration")
+                raise_typerror(p[1].value,  "type mis-match in var declaration",line=p.slice[3].lineno)
         else:
             p[0].code.append(ASN(dst=p[1].value[i], arg1=exp.value))
 
@@ -162,9 +159,9 @@ def p_simple_stmt(p):
     else:
         if len(p[1].value) != len(p[3].value):
             raise_out_of_bounds_error(p[1].value+p[3].value,
-                "error in short var decl/assignment")
+                "error in short var decl/assignment",line=p.slice[2].lineno)
         if p[2] == ":=" :
-            raise_general_error("\n := is not implemented by us. sorry! \n")
+            raise_general_error("\n := is not implemented by us. sorry! \n",line=p.slice[2].lineno)
             pass
         elif p[2] == "=" :
             p[0] = container()
@@ -187,7 +184,7 @@ def p_simple_stmt(p):
                             p[0].code += expr.code[:-1]
                             p[0].code.append(PVA(dst=expr.extra["left_place"],arg1=valexpr.value))
                     else :
-                        raise_general_error("Not Implemented")
+                        raise_general_error("Not Implemented",line=p.slice[2].lineno)
                 elif (expr.type.name == "float") and (valexpr.type.name == "int") :
                     if not flag :
                         p[0].code += expr.code
@@ -198,7 +195,7 @@ def p_simple_stmt(p):
                         p[0].code.append(UOP(dst=new_place,op="iTf",arg1=valexpr.value))
                         p[0].code.append(PVA(dst=expr.extra["left_place"],arg1=new_place))
                 else :
-                    raise_typerror(p[1].value, "in assignment : operands are different type")
+                    raise_typerror(expr.type.name + ' != '  +valexpr.type.name, "in assignment : operands are different type",line=p.slice[2].lineno)
 
 def p_stmt_block(p):
     '''StmtBlock : LCURL StartScope StmtList EndScope RCURL'''
@@ -367,15 +364,13 @@ def p_func_decl(p):
             curr_scope.insert(p[2], type=dType(name="func"), arg_list=p[4].type,
                 ret_type=p[5].type, is_var=0)
         else :
-            raise_typerror(p[2], "identifier type mismatch/ function redeclared")
-        # if p[4].code :
-        #     raise_general_error(p[2], "Syntax error")
+            raise_typerror("name = "+p[2], "identifier type mismatch/ function redeclared",line=p.slice[2].lineno)
         p[0].extra["type"] = "decl"
     else :
         lookup_result =  curr_scope.lookup(p[2])
         if lookup_result :
             if lookup_result["is_var"] :
-                raise_typerror(p[2], "Function Defined multiple times")
+                raise_typerror("name = "+p[2], "Function Defined multiple times",line=p.slice[2].lineno)
         curr_scope.insert(p[2], type=dType(name="func"), arg_list=p[4].type,ret_type=p[5].type, is_var=1)
         # p[0].code.append(LBL(arg1="func "+p[2]))
         p[0].code.append(CMD(op="BeginFunc",arg1=p[7]["offset"]))
@@ -609,8 +604,8 @@ def p_non_decl_stmt(p):
                     p[0].code += p[2].code
                     p[0].code.append(CMD(op="return",arg1=p[2].value))
             else :
-                print(ret_type.name,p[2].type.name, p[2].type.__dict__,ret_type.__dict__,p[2].type==ret_type)
-                raise_typerror(p[1],"type mismatch")
+                raise_typerror(str(ret_type.name) +' == ' + p[2].type.name, "in return statement : "
+                    + "type mismatch",line=p.slice[1].lineno)
 
 def p_pexpr(p):
     '''PExpr : Name
@@ -629,7 +624,7 @@ def p_pexpr(p):
                 p[0].value = lookup_result["uniq_id"]
                 p[0].type = lookup_result["type"]
             else:
-                raise_general_error("undeclared variable: " + p[1])
+                raise_general_error("undeclared variable : " + p[1])
         else :
             p[0] = p[1]
     elif len(p)==4 :
@@ -637,11 +632,13 @@ def p_pexpr(p):
             p[0] = p[2]
         else : # structure access
             if p[1].type.name != "structure":
-                raise_typerror(p[1].type.name,"DOT can be used only with structures")
+                raise_typerror("arg_type = "+p[1].type.name, "in primay expression : "
+                    + "DOT can be used only with structures",line=p.slice[2].lineno)
 
             field_dict = p[1].type.field_dict
             if p[3] not in field_dict:
-                raise_typerror(p[3]," is not a field in structure " + str(field_dict))
+                raise_typerror("selector = "+p[3], "in primay expression : "
+                    + "field not in structure",line=p.slice[2].lineno)
             # find the address/offset first
             field_offset=0
             for field_name in field_dict:
@@ -674,11 +671,13 @@ def p_pexpr(p):
             p[0].extra["left_place"] = new_place1
     else : # array access
         if p[3].type.name != "int" :
-            raise_typerror(p[3],"index has to be int")
+            raise_typerror("index_type = "+p[3].type.name, "in primay expression : "
+                + "index has to be int",line=p.slice[2].lineno)
 
         access_code = list()
         if p[1].type.name != "array" :
-            raise_typerror(p[1].type.name,"type mismatch trying to access array")
+            raise_typerror("arg_type = "+p[1].type.name, "in primay expression : "
+                + "non array type trying to access array",line=p.slice[2].lineno)
 
         flag = False
         if "dereference" in p[1].extra :
@@ -719,7 +718,7 @@ def p_func_call(p):
     p[0] = container()
     lookup_result = curr_scope.lookup(p[1])
     if lookup_result is None:
-        raise_general_error("undeclared function: " + p[1])
+        raise_general_error("undeclared function: " + p[1],line=p.slice[2].lineno)
     if len(p)==4 :
         if lookup_result["ret_type"] is None :
             p[0].code.append(CMD(op="pcall",arg1=p[1]))
@@ -735,13 +734,14 @@ def p_func_call(p):
         expr_list = p[3].value
         num_args = len(type_list)
         if num_args != len(expr_list) :
-            raise_typerror(p[1],"No of arguments do not match")
+            raise_typerror(str(num_args)+' != '+str(len(expr_list)),"No of arguments do not match in function "+p[1],line=p.slice[2].lineno)
         pop_size = 0
         for i in range(num_args-1,-1,-1):
             expr = expr_list[i]
             if type_list[i].name != expr.type.name :
-                print(type_list[i].__dict__,expr.type.__dict__)
-                raise_typerror(type_list[i],"type mismatch "+p[1])
+                # print(type_list[i].__dict__,expr.type.__dict__)
+                raise_typerror(type_list[i].name + " != "+ expr.type.name,
+                    "type mismatch in function "+p[1],line=p.slice[2].lineno)
             pop_size += curr_scope.sizeof(expr.type)
             p[0].code.append(CMD(op="push_param",arg1=expr.value))
         if lookup_result["ret_type"].name is None :
@@ -788,8 +788,8 @@ def p_expr(p):
                  p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op=p[2],arg2=p[3].value))
                  p[0].type = p[1].type
             else :
-                raise_typerror(p, "in expression : "
-                    + p[2] + " operator takes int operands only" )
+                raise_typerror("arg1_type = "+p[1].type.name+", arg2_type = "+p[3].type.name, "in expression : "
+                    + p[2] + " operator takes int operands only",line=p.slice[2].lineno)
         # int or float
         elif (p[2] in set({"+","-","*","/"})):
             if ((p[1].type.name == "int" and p[3].type.name == "int")
@@ -811,9 +811,9 @@ def p_expr(p):
                 p[0].code.append(BOP(dst=new_place,arg1=p[1].value,op="float"+str(p[2]),arg2=new_place1))
                 p[0].type = p[1].type
             else :
-                print(p[1].type.name,p[3].type.name)
-                raise_typerror(p, "in expression : "
-                    + p[2] + " operator takes int or float operands only" )
+                raise_typerror("arg1_type = "+p[1].type.name+", arg2_type = "+p[3].type.name, "in expression : "
+                    + p[2] + " operator takes int or float operands only",line=p.slice[2].lineno)
+
         elif p[2] in set({"<",">",">=","<=","!=","=="}):
             new_label = curr_scope.new_label()
             new_label1 = curr_scope.new_label()
@@ -851,11 +851,10 @@ def p_expr(p):
                 p[0].code.append(LBL(arg1=new_label1))
                 p[0].type = p[1].type
             else :
-                print(p[1].type,p[3].type)
-                raise_typerror(p, "in expression : "
-                    + p[2] + " operator takes int or float operands only" )
+                raise_typerror("arg1_type = "+p[1].type.name+", arg2_type = "+p[3].type.name, "in expression : "
+                    + p[2] + " operator takes int or float operands only",line=p.slice[2].lineno)
         else :
-            raise_general_error(p[2]+": operator not supported")
+            raise_general_error(p[2]+": operator not supported",line=p.slice[2].lineno)
         p[0].value = new_place
 
 
@@ -879,8 +878,8 @@ def p_uexpr(p):
                 p[0].type = dType(name="int")
                 p[0].value = new_place
             else :
-                raise_typerror(p, "in unary expression : " + p[1]
-                    + " operator takes int operands only" )
+                raise_typerror("arg_type = "+p[2].type.name, "in unary expression : "
+                    + p[1] + " operator takes int or float operands only",line=p.stack[-1].lineno)
         elif p[1] == "-" :
             p[0] = p[2]
             if (p[2].type.name == "int") or (p[2].type.name == "float") :
@@ -890,31 +889,18 @@ def p_uexpr(p):
                 p[0].type = dType(name=p[2].type.name)
                 p[0].value = new_place
             else :
-                raise_typerror(p, "in unary expression : " + p[1]
-                    + " operator takes int or float operands only")
+                raise_typerror("arg_type = "+p[2].type.name, "in unary expression : "
+                    + p[1] + " operator takes int or float operands only",line=p.stack[-1].lineno)
         elif p[1] == "*" :
             # dereferencing the pointer
             if p[2].type.name != "pointer" :
-                raise_typerror(p, "in unary expression : " + p[1]
-                    + " operator takes pointer type operands only" )
-
-            # flag = False
-            # if "dereference" in p[2].extra :
-            #     flag = p[2].extra["dereference"]
+                raise_typerror("arg_type = "+p[2].type.name, "in unary expression : "
+                    + p[1] + " operator takes pointer type operands only",line=p.stack[-1].lineno)
 
             new_place = curr_scope.new_temp(type=p[2].type.base)
             p[0].code += p[2].code
             p[0].code.append(UOP(dst=new_place,op=p[1],arg1=p[2].value))
             p[0].extra["left_place"] = p[2].value
-
-            # if not flag :
-            #     p[0].code += p[2].code
-            #     p[0].code.append(UOP(dst=new_place,op=p[1],arg1=p[2].value))
-            #     p[0].extra["left_place"] = p[2].value
-            # else :
-            #     p[0].code += p[2].code[:-1]
-            #     p[0].code.append(UOP(dst=new_place,op=p[1],arg1=p[2].extra["left_place"]))
-            #     p[0].extra["left_place"] = p[2].extra["left_place"]
 
             p[0].type = p[2].type.base
             p[0].extra["dereference"] = True
@@ -955,8 +941,8 @@ def p_end_scope(p):
     p[0] = to_return
 
 def p_error(p):
-    global curr_scope
-    print(p)
+    print("\033[91m Syntax Error \033[0m : line",p.lineno,"position",p.lexpos)
+    print("\033[92m token (type,value) \033[0m :",(p.type,p.value))
     exit(-1)
 
 parser = yacc.yacc()
