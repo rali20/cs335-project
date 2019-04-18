@@ -636,9 +636,9 @@ def p_pexpr(p):
         if p[1] == "(" :
             p[0] = p[2]
         else : # structure access
-            p[0].code += p[1].code
             if p[1].type.name != "structure":
                 raise_typerror(p[1].type.name,"DOT can be used only with structures")
+            p[0].code += p[1].code
             field_dict = p[1].type.field_dict
             if p[3] not in field_dict:
                 raise_typerror(p[3]," is not a field in structure " + str(field_dict))
@@ -662,24 +662,39 @@ def p_pexpr(p):
             p[0].extra["left_place"] = new_place1
 
     else : # array access
-        p[0].code += p[1].code
         if p[3].type.name != "int" :
             raise_typerror(p[3],"index has to be int")
-        p[0].code += p[1].code
-        p[0].code += p[3].code
+
         access_code = list()
         if p[1].type.name != "array" :
             raise_typerror(p[1].type.name,"type mismatch trying to access array")
+
+        flag = False
+        if "dereference" in p[1].extra :
+            flag = p[1].extra["dereference"]
+
         base_size = p[1].type.base.size
         p[0].type = p[1].type.base
         new_place = curr_scope.new_temp(type=p[0].type)
         new_place1 = curr_scope.new_temp(type=dType(name="int"))
         new_place2 = curr_scope.new_temp(type=dType(name="int"))
         base_size_temp = curr_scope.new_temp(type=dType(name="int"))
-        access_code.append(ASN(dst=base_size_temp,arg1=base_size,op="int="))
-        access_code.append(BOP(dst=new_place2,arg1=p[3].value,op="int*",arg2=base_size_temp))
-        access_code.append(BOP(dst=new_place1,arg1=p[1].value,op="int+",arg2=new_place2))
-        access_code.append(UOP(dst=new_place,op="*",arg1=new_place1))
+
+        if not flag :
+            p[0].code += p[1].code
+            p[0].code += p[3].code
+            access_code.append(ASN(dst=base_size_temp,arg1=base_size,op="int="))
+            access_code.append(BOP(dst=new_place2,arg1=p[3].value,op="int*",arg2=base_size_temp))
+            access_code.append(BOP(dst=new_place1,arg1=p[1].value,op="int+",arg2=new_place2))
+            access_code.append(UOP(dst=new_place,op="*",arg1=new_place1))
+        else :
+            p[0].code += p[1].code[:-1]
+            p[0].code += p[3].code
+            access_code.append(ASN(dst=base_size_temp,arg1=base_size,op="int="))
+            access_code.append(BOP(dst=new_place2,arg1=p[3].value,op="int*",arg2=base_size_temp))
+            access_code.append(BOP(dst=new_place1,arg1=p[1].extra["left_place"],op="int+",arg2=new_place2))
+            access_code.append(UOP(dst=new_place,op="*",arg1=new_place1))
+
         p[0].value = new_place
         p[0].extra["dereference"] = True
         p[0].extra["left_place"] = new_place1
@@ -868,13 +883,14 @@ def p_uexpr(p):
             elif p[1] == "*" :
                 # dereferencing the pointer
                 if p[2].type.name == "pointer" :
-                    p[0].type = p[2].type.base
-                    new_place = curr_scope.new_temp(type=p[0].type)
+                    new_place = curr_scope.new_temp(type=p[2].type.base)
                     p[0].code.append(UOP(dst=new_place,
                         op=p[1],arg1=p[2].value))
+                    p[0].type = p[2].type.base
                     p[0].extra["dereference"] = True
                     p[0].extra["left_place"] = p[2].value
                     p[0].value = new_place
+                    # print("*"*5,str(p[0].code[-1]))
                 else :
                     raise_typerror(p, "in unary expression : " + p[1]
                         + " operator takes pointer type operands only" )
